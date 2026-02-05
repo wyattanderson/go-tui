@@ -4,20 +4,20 @@ Implementation phases for the component model and broadcast key dispatch system.
 
 ---
 
-## Phase 1: Core Interfaces and KeyMap Types
+## Phase 1: Core Interfaces and KeyMap Types ✅
 
 **Reference:** [component-model-design.md §3.1–§3.2](./component-model-design.md#31-component-interfaces)
 **Review:** false
 
 **Completed in commit:** (pending)
 
-- [ ] Create `component.go`
+- [x] Create `component.go`
   - Define `Component` interface: `Render() *Element`
   - Define `KeyListener` interface: `KeyMap() KeyMap`
   - Define `Initializer` interface: `Init() func()`
   - These are pure interface definitions with no implementation logic
 
-- [ ] Create `keymap.go`
+- [x] Create `keymap.go`
   - Define `KeyMap` type: `[]KeyBinding`
   - Define `KeyBinding` struct: `Pattern KeyPattern`, `Handler func(KeyEvent)`, `Stop bool`
   - Define `KeyPattern` struct: `Key Key`, `Rune rune`, `AnyRune bool`, `Mods Modifier`
@@ -31,7 +31,7 @@ Implementation phases for the component model and broadcast key dispatch system.
     - `OnRunesStop(handler func(KeyEvent)) KeyBinding`
   - See [design §3.2](./component-model-design.md#32-keymap-types) for exact signatures
 
-- [ ] Create `keymap_test.go`
+- [x] Create `keymap_test.go`
   - Test helper constructors produce correct `KeyBinding` values
   - Test `KeyPattern` equality (used as map-adjacent lookups later)
   - Test `OnKey`/`OnKeyStop` set `Stop` flag correctly
@@ -41,13 +41,13 @@ Implementation phases for the component model and broadcast key dispatch system.
 
 ---
 
-## Phase 2: Mount System and Instance Caching
+## Phase 2: Mount System and Instance Caching ✅
 
 **Reference:** [component-model-design.md §3.3](./component-model-design.md#33-mount-and-instance-caching)
 
 **Completed in commit:** (pending)
 
-- [ ] Create `mount.go`
+- [x] Create `mount.go`
   - Define `mountKey` struct: `parent Component`, `index int`
   - Define `mountState` struct: `cache map[mountKey]Component`, `cleanups map[mountKey]func()`, `activeKeys map[mountKey]bool`
   - Implement `Mount(parent Component, index int, factory func() Component) *Element`:
@@ -60,11 +60,11 @@ Implementation phases for the component model and broadcast key dispatch system.
     - Reset `activeKeys` map for next render pass
   - Implement `newMountState() *mountState` constructor
 
-- [ ] Modify `element.go` — Add `component` field to `Element` struct
+- [x] Modify `element.go` — Add `component` field to `Element` struct
   - Add unexported field: `component Component` (after existing fields, near line ~100)
   - This field is set by `Mount()` and read during tree walks for component discovery
 
-- [ ] Modify `app.go` — Add mount state to App struct
+- [x] Modify `app.go` — Add mount state to App struct
   - Add field: `mounts *mountState` (in App struct, near line ~86)
   - Initialize in `NewApp()`: `mounts: newMountState()`
   - Add `walkComponents(root *Element, fn func(Component))` helper:
@@ -72,11 +72,11 @@ Implementation phases for the component model and broadcast key dispatch system.
     - For each element with non-nil `component` field, call `fn(el.component)`
     - Recurse into children
 
-- [ ] Modify `app_render.go` — Call sweep after render
+- [x] Modify `app_render.go` — Call sweep after render
   - After `root.Render()` completes (near line ~39), call `a.mounts.sweep()`
   - This cleans up components removed by conditional rendering
 
-- [ ] Create `mount_test.go`
+- [x] Create `mount_test.go`
   - Test first mount calls factory and caches instance
   - Test subsequent mount returns cached instance (factory not called again)
   - Test `Init()` called on first mount for `Initializer` components
@@ -89,13 +89,13 @@ Implementation phases for the component model and broadcast key dispatch system.
 
 ---
 
-## Phase 3: Dispatch Table and Key Broadcast
+## Phase 3: Dispatch Table and Key Broadcast ✅
 
 **Reference:** [component-model-design.md §3.4](./component-model-design.md#34-dispatch-table), [§9](./component-model-design.md#9-ordering-and-stop-propagation)
 
 **Completed in commit:** (pending)
 
-- [ ] Create `dispatch.go`
+- [x] Create `dispatch.go`
   - Define `dispatchEntry` struct: `pattern KeyPattern`, `handler func(KeyEvent)`, `stop bool`, `position int`
   - Define `dispatchTable` struct: `entries []dispatchEntry` (single unified list, tree-ordered)
   - Implement `(e *dispatchEntry) matches(ke KeyEvent) bool`:
@@ -117,17 +117,17 @@ Implementation phases for the component model and broadcast key dispatch system.
     - If a matching handler has `stop=true`, return immediately
   - See [design §3.4](./component-model-design.md#34-dispatch-table) for unified tree-order dispatch
 
-- [ ] Modify `app.go` — Add dispatch table field
+- [x] Modify `app.go` — Add dispatch table field
   - Add field: `dispatchTable *dispatchTable` (in App struct)
 
-- [ ] Modify `app_loop.go` — Rebuild dispatch table on dirty frame
+- [x] Modify `app_loop.go` — Rebuild dispatch table on dirty frame
   - After render completes and sweep runs (when `checkAndClearDirty()` is true):
     - Call `buildDispatchTable(root)` with the rendered element tree
     - Store result in `a.dispatchTable`
     - Log error if validation fails (don't crash — use last valid table)
   - Initial dispatch table built on first render
 
-- [ ] Modify `app_events.go` — Replace FocusManager dispatch for key events
+- [x] Modify `app_events.go` — Replace FocusManager dispatch for key events
   - In `readInputEvents()` goroutine (lines ~52-78):
     - Global key handler still runs first (existing behavior, lines 69-73)
     - For KeyEvents not consumed by global handler:
@@ -135,7 +135,7 @@ Implementation phases for the component model and broadcast key dispatch system.
     - MouseEvent and ResizeEvent dispatch remain unchanged (still use `App.Dispatch()`)
   - FocusManager is no longer used for key dispatch but remains for mouse/focus visual state
 
-- [ ] Create `dispatch_test.go`
+- [x] Create `dispatch_test.go`
   - Test broadcast: multiple handlers for same key all fire
   - Test stop propagation: handler with Stop=true prevents later handlers
   - Test tree order: handlers fire in DFS position order
@@ -152,20 +152,20 @@ Implementation phases for the component model and broadcast key dispatch system.
 
 ---
 
-## Phase 4: Parser — Method Receiver on templ
+## Phase 4: Parser — Method Receiver on templ ✅
 
 **Reference:** [component-model-design.md §5.1](./component-model-design.md#51-method-receiver-on-templ-grammar-addition)
 
 **Completed in commit:** (pending)
 
-- [ ] Modify `internal/tuigen/ast.go` — Add receiver to Component node
+- [x] Modify `internal/tuigen/ast.go` — Add receiver to Component node
   - Add field to `Component` struct (near line ~79): `Receiver string` (e.g., `"s *sidebar"`)
   - Add field: `ReceiverName string` (e.g., `"s"`) — the variable name for generated code
   - Add field: `ReceiverType string` (e.g., `"*sidebar"`) — the type for generated code
   - When `Receiver` is empty, it's a function component (existing behavior)
   - When `Receiver` is set, it's a method component (new behavior)
 
-- [ ] Modify `internal/tuigen/parser_component.go` — Parse optional receiver on templ
+- [x] Modify `internal/tuigen/parser_component.go` — Parse optional receiver on templ
   - In `parseTempl()` (line ~210):
     - After consuming `templ` token, check if next token is `(`
     - If `(`: parse as receiver `(name *Type)`, then expect method name and `()`
@@ -175,14 +175,14 @@ Implementation phases for the component model and broadcast key dispatch system.
   - Method templs have no params: `templ (s *sidebar) Render()` — the `()` is required but empty
   - The method name should always be `Render` (validate this)
 
-- [ ] Modify `internal/tuigen/parser_component.go` — Distinguish struct component mount
+- [x] Modify `internal/tuigen/parser_component.go` — Distinguish struct component mount
   - Currently `@Component(args)` creates a `ComponentCall` AST node
   - Add field to `ComponentCall` struct: `IsStructMount bool`
   - When parsing inside a method templ (has receiver), set `IsStructMount = true`
   - When parsing inside a function templ (no receiver), keep `IsStructMount = false`
   - This flag tells the generator whether to emit `tui.Mount()` or a plain function call
 
-- [ ] Create/extend `internal/tuigen/parser_component_test.go`
+- [x] Create/extend `internal/tuigen/parser_component_test.go`
   - Test parsing `templ (s *sidebar) Render() { ... }` — receiver fields populated
   - Test parsing `templ Header(title string) { ... }` — receiver fields empty (existing)
   - Test `@Component(args)` inside method templ sets `IsStructMount = true`
@@ -195,13 +195,13 @@ Implementation phases for the component model and broadcast key dispatch system.
 
 ---
 
-## Phase 5: Generator — Mount Code Generation
+## Phase 5: Generator — Mount Code Generation ✅
 
 **Reference:** [component-model-design.md §6](./component-model-design.md#6-generated-output-examples)
 
 **Completed in commit:** (pending)
 
-- [ ] Modify `internal/tuigen/generator_component.go` — Method receiver Render()
+- [x] Modify `internal/tuigen/generator_component.go` — Method receiver Render()
   - In `generateComponent()` (line ~4):
     - Check `comp.Receiver != ""`
     - If method component:
@@ -212,13 +212,13 @@ Implementation phases for the component model and broadcast key dispatch system.
     - If function component: existing generation path (unchanged)
   - Key difference: method components return `*tui.Element` directly, not a view struct
 
-- [ ] Modify `internal/tuigen/generator.go` — Pass through non-templ Go code
+- [x] Modify `internal/tuigen/generator.go` — Pass through non-templ Go code
   - Currently the generator handles `GoFunc` and `GoDecl` AST nodes
   - Ensure type definitions (`type sidebar struct { ... }`), constructors, methods, and
     interface checks (`var _ tui.KeyListener = ...`) pass through verbatim to output
   - This should already work via `GoDecl` passthrough — verify and fix if needed
 
-- [ ] Modify `internal/tuigen/generator_component.go` — Generate Mount() for struct component calls
+- [x] Modify `internal/tuigen/generator_component.go` — Generate Mount() for struct component calls
   - When generating a `ComponentCall` with `IsStructMount = true`:
     - Track a mount index counter per method component (reset per component)
     - Generate: `tui.Mount(receiverVar, mountIndex, func() tui.Component { return ComponentName(args) })`
@@ -226,7 +226,7 @@ Implementation phases for the component model and broadcast key dispatch system.
   - When `IsStructMount = false`: generate plain function call (existing behavior, unchanged)
   - See [design §6.2](./component-model-design.md#62-parent-component-with-mount-syntax) for output format
 
-- [ ] Create/extend `internal/tuigen/generator_test.go` test cases
+- [x] Create/extend `internal/tuigen/generator_test.go` test cases
   - Test method templ generates `func (s *sidebar) Render() *tui.Element { ... }`
   - Test `@Component(args)` in method templ generates `tui.Mount(s, 0, factory)`
   - Test mount indices increment: first `@A()` is index 0, second `@B()` is index 1
@@ -239,13 +239,13 @@ Implementation phases for the component model and broadcast key dispatch system.
 
 ---
 
-## Phase 6: Integration, FocusGroup Helper, and Examples
+## Phase 6: Integration, FocusGroup Helper, and Examples ✅
 
 **Reference:** [component-model-design.md §8.4](./component-model-design.md#84-focus-groups-helper-not-interface), [§14](./component-model-design.md#14-end-to-end-example)
 
 **Completed in commit:** (pending)
 
-- [ ] Create `focus_group.go` — FocusGroup helper
+- [x] Create `focus_group.go` — FocusGroup helper
   - Define `FocusGroup` struct: `members []*State[bool]`, `current int`
   - Implement `NewFocusGroup(members ...*State[bool]) *FocusGroup`
   - Implement `Next()`: deactivate current member, activate next (wrapping)
@@ -254,22 +254,22 @@ Implementation phases for the component model and broadcast key dispatch system.
   - `FocusGroup` implements `KeyListener` but not `Component` (it's a helper, not a renderable)
   - See [design §8.4](./component-model-design.md#84-focus-groups-helper-not-interface) for spec
 
-- [ ] Create `focus_group_test.go`
+- [x] Create `focus_group_test.go`
   - Test Next() cycles through members
   - Test Prev() cycles backward
   - Test wrapping at boundaries
   - Test KeyMap() returns Tab/Shift+Tab bindings
   - Test mutual exclusion: only one member active at a time
 
-- [ ] Create example: `examples/component-model/` — Multi-component app
+- [x] Create example: `examples/component-model/` — Multi-component app
   - Create `app.gsx`: root component with conditional KeyMap, mounts Sidebar and SearchInput
   - Create `sidebar.gsx`: struct component with ctrl+b toggle, renders conditionally
   - Create `search.gsx`: struct component with conditional OnRunesStop, text input
-  - Create `main.go`: entry point with `tui.NewApp(tui.WithRoot(MyApp()))`
+  - Create `main.go`: entry point with `app.SetRoot(MyApp())`
   - This validates the full pipeline: .gsx → parser → generator → compile → run
   - See [design §14](./component-model-design.md#14-end-to-end-example) for the complete example
 
-- [ ] Integration test: end-to-end component lifecycle
+- [x] Integration test: end-to-end component lifecycle
   - Test: create mock app with root component mounting two children
   - Verify: Mount caches instances, Init called, KeyMap collected
   - Verify: dispatch table built with correct tree-ordered entries
@@ -286,12 +286,12 @@ Implementation phases for the component model and broadcast key dispatch system.
 
 | Phase | Description | Status |
 |-------|-------------|--------|
-| 1 | Core interfaces (`Component`, `KeyListener`, `Initializer`) and KeyMap types with helpers | Pending |
-| 2 | Mount system with per-App cache, mark-and-sweep cleanup, Element.component field | Pending |
-| 3 | Dispatch table with unified tree-order, broadcast + stop propagation, App integration | Pending |
-| 4 | Parser support for `templ (recv) Name()` method receiver and struct mount detection | Pending |
-| 5 | Generator: method Render(), `tui.Mount()` code gen, verbatim passthrough | Pending |
-| 6 | FocusGroup helper, multi-component example, end-to-end integration tests | Pending |
+| 1 | Core interfaces (`Component`, `KeyListener`, `Initializer`) and KeyMap types with helpers | ✅ Complete |
+| 2 | Mount system with per-App cache, mark-and-sweep cleanup, Element.component field | ✅ Complete |
+| 3 | Dispatch table with unified tree-order, broadcast + stop propagation, App integration | ✅ Complete |
+| 4 | Parser support for `templ (recv) Name()` method receiver and struct mount detection | ✅ Complete |
+| 5 | Generator: method Render(), `tui.Mount()` code gen, verbatim passthrough | ✅ Complete |
+| 6 | FocusGroup helper, multi-component example, end-to-end integration tests | ✅ Complete |
 
 ## Files to Create
 
@@ -305,10 +305,14 @@ dispatch.go           — dispatchTable, buildDispatchTable(), dispatch()
 dispatch_test.go      — Dispatch/broadcast/stop tests
 focus_group.go        — FocusGroup helper (Tab cycling)
 focus_group_test.go   — FocusGroup tests
+integration_test.go   — End-to-end component lifecycle integration tests
 examples/component-model/
 ├── app.gsx           — Root component
+├── app_gsx.go        — Generated Go from app.gsx
 ├── sidebar.gsx       — Sidebar component
+├── sidebar_gsx.go    — Generated Go from sidebar.gsx
 ├── search.gsx        — Search input component
+├── search_gsx.go     — Generated Go from search.gsx
 └── main.go           — Entry point
 ```
 
@@ -317,10 +321,10 @@ examples/component-model/
 | File | Changes |
 |------|---------|
 | `element.go` | Add `component Component` field to Element struct |
-| `app.go` | Add `mounts *mountState` and `dispatchTable *dispatchTable` fields; add `walkComponents()` |
+| `app.go` | Add `mounts *mountState`, `dispatchTable *dispatchTable`, `rootComponent Component` fields; add `walkComponents()`; extend `SetRoot()` to accept `Component` |
 | `app_events.go` | Use dispatch table for key events instead of FocusManager |
 | `app_loop.go` | Rebuild dispatch table after render on dirty frames |
-| `app_render.go` | Call `mounts.sweep()` after render |
+| `app_render.go` | Call `mounts.sweep()` after render; re-render root component on dirty frames |
 | `internal/tuigen/ast.go` | Add `Receiver`, `ReceiverName`, `ReceiverType` to Component; add `IsStructMount` to ComponentCall |
 | `internal/tuigen/parser_component.go` | Parse optional receiver on `templ`; set `IsStructMount` flag |
 | `internal/tuigen/generator.go` | Ensure non-templ Go code passes through |
