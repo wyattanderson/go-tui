@@ -309,6 +309,7 @@ func TestModal_RenderFull_RepopulatesOverlays(t *testing.T) {
 	app.rootComponent = rootComp
 
 	// First render populates overlays
+	app.MarkDirty()
 	app.Render()
 	if len(app.overlays) == 0 {
 		t.Fatal("expected overlay after initial Render()")
@@ -331,6 +332,7 @@ func TestModal_RenderFull_NeedsFocusInit(t *testing.T) {
 	app.rootComponent = rootComp
 
 	// Initial render with modal closed
+	app.MarkDirty()
 	app.Render()
 	if len(app.overlays) != 0 {
 		t.Fatal("expected no overlays when modal is closed")

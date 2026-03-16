@@ -1,6 +1,9 @@
 package tui
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestUpdateEvent_ImplementsEvent(t *testing.T) {
 	var ev Event = UpdateEvent{fn: func() {}}
@@ -17,3 +20,38 @@ func TestUpdateEvent_RunsClosure(t *testing.T) {
 		t.Fatal("UpdateEvent closure should have been called")
 	}
 }
+
+func TestRender_SkipsWhenNotDirty(t *testing.T) {
+	mock := NewMockTerminal(80, 24)
+	app := &App{
+		terminal:     mock,
+		buffer:       NewBuffer(80, 24),
+		focus:        newFocusManager(),
+		events:       make(chan Event, 1),
+		watcherQueue: make(chan func(), 1),
+		stopCh:       make(chan struct{}),
+		mounts:       newMountState(),
+		batch:        newBatchContext(),
+	}
+	root := New(WithText("hello"))
+	app.SetRoot(root)
+
+	// First render: dirty from SetRoot
+	app.Render()
+
+	// Capture buffer state after first render
+	snap1 := app.buffer.StringTrimmed()
+
+	// Second render without marking dirty: should be no-op
+	root.SetText("changed")
+	app.resetDirty()
+	app.Render()
+
+	snap2 := app.buffer.StringTrimmed()
+	if snap1 != snap2 {
+		t.Errorf("Render() should be no-op when not dirty\nbefore: %q\nafter: %q", snap1, snap2)
+	}
+}
+
+// Placeholder for time import usage
+var _ = time.Millisecond

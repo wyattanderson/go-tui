@@ -35,7 +35,8 @@ func (a *App) Run() error {
 	go a.readInputEvents()
 
 	// Initial render
-	a.Render()
+	a.MarkDirty()
+	a.renderFrame()
 	a.rebuildDispatchTable()
 
 	// Frame-based loop with configurable frame timing
@@ -57,11 +58,8 @@ func (a *App) Run() error {
 			}
 		}
 
-		// Always render if dirty
-		if a.checkAndClearDirty() {
-			a.Render()
-			a.rebuildDispatchTable()
-		}
+		// Render if dirty (Render() checks and clears the dirty flag internally)
+		a.Render()
 
 		// Sleep for remaining frame time to maintain consistent framerate
 		elapsed := time.Since(frameStart)
