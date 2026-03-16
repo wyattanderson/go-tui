@@ -40,6 +40,7 @@ type App struct {
 	stopOnce     sync.Once
 	closeOnce    sync.Once
 	opened       atomic.Bool
+	signalCleanup    func()              // Cleans up signal handlers (set by Open)
 	selfSuspended    atomic.Bool         // True during self-initiated suspend; prevents double resume from SIGCONT handler
 	globalKeyHandler func(KeyEvent) bool // Returns true if event consumed
 

@@ -53,5 +53,52 @@ func TestRender_SkipsWhenNotDirty(t *testing.T) {
 	}
 }
 
+func TestOpen_DoubleCallReturnsError(t *testing.T) {
+	app := &App{
+		terminal:     NewMockTerminal(80, 24),
+		reader:       &MockEventReader{},
+		buffer:       NewBuffer(80, 24),
+		focus:        newFocusManager(),
+		events:       make(chan Event, 256),
+		watcherQueue: make(chan func(), 256),
+		stopCh:       make(chan struct{}),
+		mounts:       newMountState(),
+		batch:        newBatchContext(),
+	}
+
+	if err := app.Open(); err != nil {
+		t.Fatalf("first Open() should succeed: %v", err)
+	}
+	defer app.Close()
+
+	if err := app.Open(); err == nil {
+		t.Fatal("second Open() should return error")
+	}
+}
+
+func TestClose_Idempotent(t *testing.T) {
+	app := &App{
+		terminal:     NewMockTerminal(80, 24),
+		reader:       &MockEventReader{},
+		buffer:       NewBuffer(80, 24),
+		focus:        newFocusManager(),
+		events:       make(chan Event, 256),
+		watcherQueue: make(chan func(), 256),
+		stopCh:       make(chan struct{}),
+		mounts:       newMountState(),
+		batch:        newBatchContext(),
+	}
+
+	if err := app.Open(); err != nil {
+		t.Fatalf("Open() failed: %v", err)
+	}
+
+	// First close
+	app.Close()
+
+	// Second close should not panic
+	app.Close()
+}
+
 // Placeholder for time import usage
 var _ = time.Millisecond

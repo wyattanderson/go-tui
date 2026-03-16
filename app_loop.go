@@ -7,6 +7,52 @@ import (
 	"time"
 )
 
+// Open initializes the event loop: registers signal handlers, starts the
+// input reader goroutine, and performs the initial render. Call this instead
+// of Run() when driving your own event loop. Returns an error if already open.
+//
+// After Open(), use Events(), Dispatch(), and Render() to process events.
+// Call Close() when done to restore terminal state.
+func (a *App) Open() error {
+	if !a.opened.CompareAndSwap(false, true) {
+		return fmt.Errorf("tui: app is already open")
+	}
+
+	// Handle Ctrl+C gracefully
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt)
+	go func() {
+		select {
+		case <-sigCh:
+			a.Stop()
+		case <-a.stopCh:
+		}
+		signal.Stop(sigCh)
+	}()
+
+	// Handle SIGWINCH (terminal resize)
+	cleanupResize := a.registerResizeSignal()
+
+	// Handle Ctrl+Z / SIGTSTP for job control
+	cleanupSuspend := a.registerSuspendSignals()
+
+	// Store cleanup functions for Close()
+	a.signalCleanup = func() {
+		cleanupResize()
+		cleanupSuspend()
+	}
+
+	// Start input reader in background
+	go a.readInputEvents()
+
+	// Initial render
+	a.MarkDirty()
+	a.renderFrame()
+	a.rebuildDispatchTable()
+
+	return nil
+}
+
 // Run starts the main event loop. Blocks until Stop() is called or SIGINT received.
 // Rendering occurs only when the dirty flag is set (by mutations).
 func (a *App) Run() error {
