@@ -136,6 +136,39 @@ func (a *App) Stop() {
 	})
 }
 
+// Events returns a read-only channel carrying all events: key, mouse, resize,
+// and queued updates. Use this with select to multiplex go-tui events with
+// your own event sources. The channel remains open until the App is garbage
+// collected; use StopCh() to detect shutdown.
+func (a *App) Events() <-chan Event {
+	return a.events
+}
+
+// DispatchEvents reads and dispatches all pending events from the Events channel.
+// Returns false if the app has been stopped, true otherwise.
+func (a *App) DispatchEvents() bool {
+	for {
+		select {
+		case <-a.stopCh:
+			return false
+		case ev := <-a.events:
+			a.Dispatch(ev)
+		default:
+			return true
+		}
+	}
+}
+
+// Step is a convenience that calls DispatchEvents followed by Render.
+// Returns false if the app has been stopped.
+func (a *App) Step() bool {
+	if !a.DispatchEvents() {
+		return false
+	}
+	a.Render()
+	return true
+}
+
 // QueueUpdate enqueues a function to run on the main loop.
 // Safe to call from any goroutine. Use this for background thread safety.
 func (a *App) QueueUpdate(fn func()) {
