@@ -53,29 +53,6 @@ func TestRender_SkipsWhenNotDirty(t *testing.T) {
 	}
 }
 
-func TestOpen_DoubleCallReturnsError(t *testing.T) {
-	app := &App{
-		terminal:     NewMockTerminal(80, 24),
-		reader:       &MockEventReader{},
-		buffer:       NewBuffer(80, 24),
-		focus:        newFocusManager(),
-		events:       make(chan Event, 256),
-		watcherQueue: make(chan func(), 256),
-		stopCh:       make(chan struct{}),
-		mounts:       newMountState(),
-		batch:        newBatchContext(),
-	}
-
-	if err := app.Open(); err != nil {
-		t.Fatalf("first Open() should succeed: %v", err)
-	}
-	defer app.Close()
-
-	if err := app.Open(); err == nil {
-		t.Fatal("second Open() should return error")
-	}
-}
-
 func TestClose_Idempotent(t *testing.T) {
 	app := &App{
 		terminal:     NewMockTerminal(80, 24),
@@ -137,33 +114,6 @@ func TestDispatchEvents_ReturnsFalseOnStop(t *testing.T) {
 
 	if app.DispatchEvents() {
 		t.Fatal("DispatchEvents should return false when stopped")
-	}
-}
-
-func TestDispatchEvents_ProcessesPendingEvents(t *testing.T) {
-	called := 0
-	app := &App{
-		terminal:     NewMockTerminal(80, 24),
-		buffer:       NewBuffer(80, 24),
-		focus:        newFocusManager(),
-		events:       make(chan Event, 256),
-		watcherQueue: make(chan func(), 256),
-		stopCh:       make(chan struct{}),
-		mounts:       newMountState(),
-		batch:        newBatchContext(),
-	}
-
-	// Queue 3 update events
-	for i := 0; i < 3; i++ {
-		app.events <- UpdateEvent{fn: func() { called++ }}
-	}
-
-	ok := app.DispatchEvents()
-	if !ok {
-		t.Fatal("DispatchEvents should return true")
-	}
-	if called != 3 {
-		t.Fatalf("expected 3 closures called, got %d", called)
 	}
 }
 

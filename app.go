@@ -38,10 +38,10 @@ type App struct {
 	stopCh       chan struct{}
 	stopped      bool
 	stopOnce     sync.Once
-	closeOnce    sync.Once
-	opened       atomic.Bool
-	signalCleanup    func()              // Cleans up signal handlers (set by Open)
-	selfSuspended    atomic.Bool         // True during self-initiated suspend; prevents double resume from SIGCONT handler
+	closeOnce     sync.Once
+	opened        atomic.Bool
+	signalCleanup func()      // Cleans up signal handlers (set by Open)
+	selfSuspended atomic.Bool // True during self-initiated suspend; prevents double resume from SIGCONT handler
 	globalKeyHandler func(KeyEvent) bool // Returns true if event consumed
 
 	// Configuration (set via options)
@@ -170,25 +170,7 @@ func NewApp(opts ...AppOption) (*App, error) {
 	// Create unified event channel and watcher bridge
 	app.events = make(chan Event, app.eventQueueSize)
 	app.watcherQueue = make(chan func(), app.eventQueueSize)
-
-	// Bridge: forward watcher closures to the unified event channel.
-	go func() {
-		for {
-			select {
-			case fn, ok := <-app.watcherQueue:
-				if !ok {
-					return
-				}
-				select {
-				case app.events <- UpdateEvent{fn: fn}:
-				case <-app.stopCh:
-					return
-				}
-			case <-app.stopCh:
-				return
-			}
-		}
-	}()
+	app.startWatcherBridge()
 
 	// Apply terminal settings based on options
 	if app.mouseEnabled {
@@ -292,25 +274,7 @@ func NewAppWithReader(reader EventReader, opts ...AppOption) (*App, error) {
 	// Create unified event channel and watcher bridge
 	app.events = make(chan Event, app.eventQueueSize)
 	app.watcherQueue = make(chan func(), app.eventQueueSize)
-
-	// Bridge: forward watcher closures to the unified event channel.
-	go func() {
-		for {
-			select {
-			case fn, ok := <-app.watcherQueue:
-				if !ok {
-					return
-				}
-				select {
-				case app.events <- UpdateEvent{fn: fn}:
-				case <-app.stopCh:
-					return
-				}
-			case <-app.stopCh:
-				return
-			}
-		}
-	}()
+	app.startWatcherBridge()
 
 	// Apply terminal settings based on options
 	if app.mouseEnabled {
@@ -500,6 +464,28 @@ func (a *App) Buffer() *Buffer {
 // Convenience wrapper around the EventReader.
 func (a *App) PollEvent(timeout time.Duration) (Event, bool) {
 	return a.reader.PollEvent(timeout)
+}
+
+// startWatcherBridge starts a goroutine that forwards closures from the
+// watcherQueue to the unified events channel as UpdateEvents.
+func (a *App) startWatcherBridge() {
+	go func() {
+		for {
+			select {
+			case fn, ok := <-a.watcherQueue:
+				if !ok {
+					return
+				}
+				select {
+				case a.events <- UpdateEvent{fn: fn}:
+				case <-a.stopCh:
+					return
+				}
+			case <-a.stopCh:
+				return
+			}
+		}
+	}()
 }
 
 // walkComponents performs a BFS walk of the element tree, calling fn for

@@ -77,31 +77,36 @@ func TestApp_QueueUpdate_FromGoroutine(t *testing.T) {
 	}
 }
 
-func TestApp_QueueUpdate_BlocksWhenFull(t *testing.T) {
+func TestApp_QueueUpdate_DropsWhenFull(t *testing.T) {
 	app := &App{
 		focus:        newFocusManager(),
 		buffer:       NewBuffer(80, 24),
-		events:       make(chan Event, 2),
-		watcherQueue: make(chan func(), 2),
+		events:       make(chan Event, 1),
+		watcherQueue: make(chan func(), 1),
 		stopCh:       make(chan struct{}),
 	}
 
 	seen := make([]int, 0, 2)
-	app.QueueUpdate(func() { seen = append(seen, 1) })
-	app.QueueUpdate(func() { seen = append(seen, 2) })
+	app.QueueUpdate(func() { seen = append(seen, 1) }) // fits in buffer
+	app.QueueUpdate(func() { seen = append(seen, 2) }) // channel full, dropped
 
-	// Drain both events
-	for i := 0; i < 2; i++ {
-		select {
-		case ev := <-app.events:
-			app.Dispatch(ev)
-		case <-time.After(100 * time.Millisecond):
-			t.Fatal("expected queued update")
-		}
+	// Drain: only the first update should be present
+	select {
+	case ev := <-app.events:
+		app.Dispatch(ev)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("expected queued update")
 	}
 
-	if len(seen) != 2 || seen[0] != 1 || seen[1] != 2 {
-		t.Fatalf("expected both updates to run in order, got %v", seen)
+	// Channel should be empty now
+	select {
+	case <-app.events:
+		t.Fatal("expected channel to be empty after draining one event")
+	default:
+	}
+
+	if len(seen) != 1 || seen[0] != 1 {
+		t.Fatalf("expected only first update to run, got %v", seen)
 	}
 }
 

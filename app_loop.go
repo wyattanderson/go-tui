@@ -13,10 +13,20 @@ import (
 //
 // After Open(), use Events(), Dispatch(), and Render() to process events.
 // Call Close() when done to restore terminal state.
-func (a *App) Open() error {
+func (a *App) Open() (retErr error) {
 	if !a.opened.CompareAndSwap(false, true) {
 		return fmt.Errorf("tui: app is already open")
 	}
+
+	// If Open fails after starting goroutines, clean them up.
+	defer func() {
+		if retErr != nil {
+			a.Stop()
+			if a.signalCleanup != nil {
+				a.signalCleanup()
+			}
+		}
+	}()
 
 	// Handle Ctrl+C gracefully
 	sigCh := make(chan os.Signal, 1)
@@ -147,6 +157,8 @@ func (a *App) Step() bool {
 
 // QueueUpdate enqueues a function to run on the main loop.
 // Safe to call from any goroutine. Use this for background thread safety.
+// If the event channel is full, the update is dropped to avoid blocking
+// input events and watchers that share the same channel.
 func (a *App) QueueUpdate(fn func()) {
 	if fn == nil {
 		return
@@ -154,6 +166,9 @@ func (a *App) QueueUpdate(fn func()) {
 	select {
 	case a.events <- UpdateEvent{fn: fn}:
 	case <-a.stopCh:
+	default:
+		// Channel full; drop the update to avoid blocking senders of
+		// input events and watcher callbacks that share this channel.
 	}
 }
 

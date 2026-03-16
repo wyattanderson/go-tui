@@ -17,7 +17,8 @@ func (a *App) SnapshotFrame() string {
 
 // Close restores the terminal to its original state.
 // Must be called when the application exits. Safe to call multiple times.
-func (a *App) Close() {
+func (a *App) Close() error {
+	var closeErr error
 	a.closeOnce.Do(func() {
 		// Stop goroutines if not already stopped
 		a.Stop()
@@ -62,13 +63,20 @@ func (a *App) Close() {
 		a.terminal.DisableKittyKeyboard()
 
 		// Exit raw mode
-		a.terminal.ExitRawMode()
+		if err := a.terminal.ExitRawMode(); err != nil {
+			if a.reader != nil {
+				a.reader.Close()
+			}
+			closeErr = err
+			return
+		}
 
 		// Close EventReader
 		if a.reader != nil {
-			a.reader.Close()
+			closeErr = a.reader.Close()
 		}
 	})
+	return closeErr
 }
 
 // PrintAbove prints content that scrolls up above the inline widget.

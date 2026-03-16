@@ -77,7 +77,8 @@ func (a *App) Dispatch(event Event) bool {
 		return true
 	}
 
-	return false
+	// Unknown event types fall through to the focus manager.
+	return a.focus.Dispatch(event)
 }
 
 // dispatchMouseToComponents walks the component tree and dispatches a mouse
