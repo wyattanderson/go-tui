@@ -54,43 +54,22 @@ func (a *App) Open() error {
 }
 
 // Run starts the main event loop. Blocks until Stop() is called or SIGINT received.
-// Rendering occurs only when the dirty flag is set (by mutations).
+// This is equivalent to calling Open(), running a frame-timed loop with
+// Dispatch/Render, and calling Close(). For custom event loops, use
+// Open/Events/Dispatch/Render/Close directly.
 func (a *App) Run() error {
-	// Handle Ctrl+C gracefully
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt)
-	go func() {
-		select {
-		case <-sigCh:
-			a.Stop()
-		case <-a.stopCh:
-			// App already stopped, clean up signal handler
+	if !a.opened.Load() {
+		if err := a.Open(); err != nil {
+			return err
 		}
-		signal.Stop(sigCh)
-	}()
+	}
+	defer a.Close()
 
-	// Handle SIGWINCH (terminal resize)
-	cleanupResize := a.registerResizeSignal()
-	defer cleanupResize()
-
-	// Handle Ctrl+Z / SIGTSTP for job control
-	cleanupSuspend := a.registerSuspendSignals()
-	defer cleanupSuspend()
-
-	// Start input reader in background
-	go a.readInputEvents()
-
-	// Initial render
-	a.MarkDirty()
-	a.renderFrame()
-	a.rebuildDispatchTable()
-
-	// Frame-based loop with configurable frame timing
 	for {
 		frameStart := time.Now()
-
-		// Process events for up to half the frame budget (non-blocking)
 		eventDeadline := frameStart.Add(a.frameDuration / 2)
+
+		// Drain events for up to half the frame budget
 	drain:
 		for time.Now().Before(eventDeadline) {
 			select {
@@ -99,19 +78,16 @@ func (a *App) Run() error {
 			case <-a.stopCh:
 				return nil
 			default:
-				// No more events, move to render phase
 				break drain
 			}
 		}
 
-		// Render if dirty (Render() checks and clears the dirty flag internally)
 		a.Render()
 
-		// Sleep for remaining frame time to maintain consistent framerate
 		elapsed := time.Since(frameStart)
-		if elapsed < a.frameDuration {
+		if remaining := a.frameDuration - elapsed; remaining > 0 {
 			select {
-			case <-time.After(a.frameDuration - elapsed):
+			case <-time.After(remaining):
 			case <-a.stopCh:
 				return nil
 			}
