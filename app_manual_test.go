@@ -184,3 +184,161 @@ func TestStep_ReturnsFalseOnStop(t *testing.T) {
 		t.Fatal("Step should return false when stopped")
 	}
 }
+
+// Integration tests for manual event loop patterns
+
+func TestManualLoop_StepExitsOnStop(t *testing.T) {
+	app := &App{
+		terminal:      NewMockTerminal(80, 24),
+		reader:        &MockEventReader{},
+		buffer:        NewBuffer(80, 24),
+		focus:         newFocusManager(),
+		events:        make(chan Event, 256),
+		watcherQueue:  make(chan func(), 256),
+		stopCh:        make(chan struct{}),
+		mounts:        newMountState(),
+		batch:         newBatchContext(),
+		frameDuration: 16 * time.Millisecond,
+	}
+
+	root := New(WithText("hello"))
+	app.SetRoot(root)
+
+	// Run a step
+	if !app.Step() {
+		t.Fatal("Step should return true while running")
+	}
+
+	// Stop and verify Step returns false
+	app.Stop()
+	if app.Step() {
+		t.Fatal("Step should return false after Stop")
+	}
+}
+
+func TestManualLoop_EventsChannelReceivesUpdates(t *testing.T) {
+	app := &App{
+		terminal:     NewMockTerminal(80, 24),
+		reader:       &MockEventReader{},
+		buffer:       NewBuffer(80, 24),
+		focus:        newFocusManager(),
+		events:       make(chan Event, 256),
+		watcherQueue: make(chan func(), 256),
+		stopCh:       make(chan struct{}),
+		mounts:       newMountState(),
+		batch:        newBatchContext(),
+	}
+
+	called := false
+	app.QueueUpdate(func() { called = true })
+
+	select {
+	case ev, ok := <-app.Events():
+		if !ok {
+			t.Fatal("channel should be open")
+		}
+		app.Dispatch(ev)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("expected event on channel")
+	}
+
+	if !called {
+		t.Fatal("QueueUpdate closure should have been dispatched")
+	}
+}
+
+func TestManualLoop_DispatchEventsProcessesAll(t *testing.T) {
+	app := &App{
+		terminal:     NewMockTerminal(80, 24),
+		buffer:       NewBuffer(80, 24),
+		focus:        newFocusManager(),
+		events:       make(chan Event, 256),
+		watcherQueue: make(chan func(), 256),
+		stopCh:       make(chan struct{}),
+		mounts:       newMountState(),
+		batch:        newBatchContext(),
+	}
+
+	count := 0
+	for i := 0; i < 5; i++ {
+		app.events <- UpdateEvent{fn: func() { count++ }}
+	}
+
+	ok := app.DispatchEvents()
+	if !ok {
+		t.Fatal("DispatchEvents should return true")
+	}
+	if count != 5 {
+		t.Fatalf("expected 5 dispatches, got %d", count)
+	}
+}
+
+func TestManualLoop_OpenDoubleCallErrors(t *testing.T) {
+	app := &App{
+		terminal:      NewMockTerminal(80, 24),
+		reader:        &MockEventReader{},
+		buffer:        NewBuffer(80, 24),
+		focus:         newFocusManager(),
+		events:        make(chan Event, 256),
+		watcherQueue:  make(chan func(), 256),
+		stopCh:        make(chan struct{}),
+		mounts:        newMountState(),
+		batch:         newBatchContext(),
+		frameDuration: 16 * time.Millisecond,
+	}
+
+	if err := app.Open(); err != nil {
+		t.Fatalf("first Open should succeed: %v", err)
+	}
+	defer app.Close()
+
+	if err := app.Open(); err == nil {
+		t.Fatal("second Open should return error")
+	}
+}
+
+func TestManualLoop_SelectMultiplexing(t *testing.T) {
+	app := &App{
+		terminal:     NewMockTerminal(80, 24),
+		reader:       &MockEventReader{},
+		buffer:       NewBuffer(80, 24),
+		focus:        newFocusManager(),
+		events:       make(chan Event, 256),
+		watcherQueue: make(chan func(), 256),
+		stopCh:       make(chan struct{}),
+		mounts:       newMountState(),
+		batch:        newBatchContext(),
+	}
+
+	customCh := make(chan string, 1)
+	customCh <- "external"
+
+	app.events <- UpdateEvent{fn: func() {}}
+
+	tuiHandled := false
+	customHandled := false
+
+	// Process both sources
+	for i := 0; i < 2; i++ {
+		select {
+		case ev, ok := <-app.Events():
+			if ok {
+				app.Dispatch(ev)
+				tuiHandled = true
+			}
+		case msg := <-customCh:
+			if msg == "external" {
+				customHandled = true
+			}
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("timed out waiting for events")
+		}
+	}
+
+	if !tuiHandled {
+		t.Error("tui event should have been handled")
+	}
+	if !customHandled {
+		t.Error("custom event should have been handled")
+	}
+}
