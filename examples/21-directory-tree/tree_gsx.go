@@ -158,6 +158,14 @@ func (d *directoryTree) KeyMap() tui.KeyMap {
 		tui.On(tui.Rune('l'), func(ke tui.KeyEvent) { d.toggle() }),
 		tui.On(tui.KeyLeft, func(ke tui.KeyEvent) { d.collapseOrParent() }),
 		tui.On(tui.Rune('h'), func(ke tui.KeyEvent) { d.collapseOrParent() }),
+		tui.On(tui.KeyPageUp, func(ke tui.KeyEvent) { d.pageUp() }),
+		tui.On(tui.Rune('u'), func(ke tui.KeyEvent) { d.pageUp() }),
+		tui.On(tui.KeyPageDown, func(ke tui.KeyEvent) { d.pageDown() }),
+		tui.On(tui.Rune('d'), func(ke tui.KeyEvent) { d.pageDown() }),
+		tui.On(tui.KeyHome, func(ke tui.KeyEvent) { d.moveToTop() }),
+		tui.On(tui.Rune('g'), func(ke tui.KeyEvent) { d.moveToTop() }),
+		tui.On(tui.KeyEnd, func(ke tui.KeyEvent) { d.moveToBottom() }),
+		tui.On(tui.Rune('G'), func(ke tui.KeyEvent) { d.moveToBottom() }),
 	}
 }
 
@@ -178,6 +186,52 @@ func (d *directoryTree) moveDown() {
 		}
 		return v
 	})
+}
+
+func (d *directoryTree) pageUp() {
+	pageSize := d.viewportHeight()
+	d.cursor.Update(func(v int) int {
+		v -= pageSize
+		if v < 0 {
+			v = 0
+		}
+		return v
+	})
+}
+
+func (d *directoryTree) pageDown() {
+	visible := d.visibleNodes()
+	pageSize := d.viewportHeight()
+	d.cursor.Update(func(v int) int {
+		v += pageSize
+		if v >= len(visible) {
+			v = len(visible) - 1
+		}
+		return v
+	})
+}
+
+func (d *directoryTree) moveToTop() {
+	d.cursor.Set(0)
+}
+
+func (d *directoryTree) moveToBottom() {
+	visible := d.visibleNodes()
+	if len(visible) > 0 {
+		d.cursor.Set(len(visible) - 1)
+	}
+}
+
+func (d *directoryTree) viewportHeight() int {
+	el := d.scrollContainer.El()
+	if el == nil {
+		return 10
+	}
+	_, vpH := el.ViewportSize()
+	if vpH <= 0 {
+		return 10
+	}
+	return vpH
 }
 
 func (d *directoryTree) toggle() {
@@ -422,7 +476,7 @@ func (d *directoryTree) Render(app *tui.App) *tui.Element {
 		tui.WithPadding(1),
 	)
 	__tui_12 := tui.New(
-		tui.WithText("j/k: navigate | enter/l: expand | h: collapse | q: quit"),
+		tui.WithText("j/k: navigate | d/u: page up/down | g/G: top/bottom | enter/l: expand | h: collapse | q: quit"),
 		tui.WithTextStyle(tui.NewStyle().Dim()),
 	)
 	__tui_11.AddChild(__tui_12)
