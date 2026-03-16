@@ -114,9 +114,8 @@ func (a *App) readInputEvents() {
 			continue
 		}
 
-		ev := event
 		select {
-		case a.eventQueue <- func() { a.Dispatch(ev) }:
+		case a.events <- event:
 		case <-a.stopCh:
 			return
 		}

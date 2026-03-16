@@ -68,7 +68,7 @@ func (a *App) Render() {
 		if a.root != nil {
 			a.componentWatchers = collectComponentWatchers(a.rootComponent, a.root)
 			for _, w := range a.componentWatchers {
-				w.Start(a.eventQueue, a.rootWatcherCh)
+				w.Start(a.watcherQueue, a.rootWatcherCh)
 			}
 		}
 		a.componentWatchersStarted = true

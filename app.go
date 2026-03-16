@@ -33,11 +33,13 @@ type App struct {
 	batch           batchContext
 
 	// Event loop fields
-	eventQueue       chan func()
-	updateQueue      chan func()
-	stopCh           chan struct{}
-	stopped          bool
-	stopOnce         sync.Once
+	events       chan Event      // Unified event channel (key, mouse, resize, updates)
+	watcherQueue chan func()     // Bridge channel for Watcher interface compatibility
+	stopCh       chan struct{}
+	stopped      bool
+	stopOnce     sync.Once
+	closeOnce    sync.Once
+	opened       atomic.Bool
 	selfSuspended    atomic.Bool         // True during self-initiated suspend; prevents double resume from SIGCONT handler
 	globalKeyHandler func(KeyEvent) bool // Returns true if event consumed
 
@@ -164,9 +166,28 @@ func NewApp(opts ...AppOption) (*App, error) {
 	// Set up screen mode based on inline configuration.
 	app.setupInitialScreen(width, termHeight)
 
-	// Create event queue with configured size
-	app.eventQueue = make(chan func(), app.eventQueueSize)
-	app.updateQueue = make(chan func(), app.eventQueueSize)
+	// Create unified event channel and watcher bridge
+	app.events = make(chan Event, app.eventQueueSize)
+	app.watcherQueue = make(chan func(), app.eventQueueSize)
+
+	// Bridge: forward watcher closures to the unified event channel.
+	go func() {
+		for {
+			select {
+			case fn, ok := <-app.watcherQueue:
+				if !ok {
+					return
+				}
+				select {
+				case app.events <- UpdateEvent{fn: fn}:
+				case <-app.stopCh:
+					return
+				}
+			case <-app.stopCh:
+				return
+			}
+		}
+	}()
 
 	// Apply terminal settings based on options
 	if app.mouseEnabled {
@@ -267,9 +288,28 @@ func NewAppWithReader(reader EventReader, opts ...AppOption) (*App, error) {
 	// Set up screen mode based on inline configuration.
 	app.setupInitialScreen(width, termHeight)
 
-	// Create event queue with configured size
-	app.eventQueue = make(chan func(), app.eventQueueSize)
-	app.updateQueue = make(chan func(), app.eventQueueSize)
+	// Create unified event channel and watcher bridge
+	app.events = make(chan Event, app.eventQueueSize)
+	app.watcherQueue = make(chan func(), app.eventQueueSize)
+
+	// Bridge: forward watcher closures to the unified event channel.
+	go func() {
+		for {
+			select {
+			case fn, ok := <-app.watcherQueue:
+				if !ok {
+					return
+				}
+				select {
+				case app.events <- UpdateEvent{fn: fn}:
+				case <-app.stopCh:
+					return
+				}
+			case <-app.stopCh:
+				return
+			}
+		}
+	}()
 
 	// Apply terminal settings based on options
 	if app.mouseEnabled {
@@ -324,7 +364,7 @@ func (a *App) SetRootView(view Viewable) {
 		binder.BindApp(a)
 	}
 	for _, w := range view.GetWatchers() {
-		w.Start(a.eventQueue, a.rootWatcherCh)
+		w.Start(a.watcherQueue, a.rootWatcherCh)
 	}
 }
 
@@ -362,7 +402,7 @@ func (a *App) applyRoot(root *Element) {
 
 	// Start all watchers in the tree
 	root.WalkWatchers(func(w Watcher) {
-		w.Start(a.eventQueue, a.rootWatcherCh)
+		w.Start(a.watcherQueue, a.rootWatcherCh)
 	})
 }
 
@@ -437,10 +477,10 @@ func (a *App) Terminal() Terminal {
 	return a.terminal
 }
 
-// EventQueue returns the event queue channel for manual watcher setup.
+// EventQueue returns the watcher queue channel for manual watcher setup.
 // Use with caution - prefer using SetRoot with Viewable for automatic watcher management.
 func (a *App) EventQueue() chan<- func() {
-	return a.eventQueue
+	return a.watcherQueue
 }
 
 // StopCh returns the stop channel for manual watcher setup.

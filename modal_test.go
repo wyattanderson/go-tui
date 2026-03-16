@@ -288,14 +288,14 @@ func (r *testModalRoot) Render(app *App) *Element {
 // newTestApp creates a lightweight App with a mock terminal and buffer for modal tests.
 func newTestApp(width, height int) *App {
 	return &App{
-		terminal:    NewMockTerminal(width, height),
-		buffer:      NewBuffer(width, height),
-		stopCh:      make(chan struct{}),
-		eventQueue:  make(chan func(), 256),
-		updateQueue: make(chan func(), 256),
-		focus:       newFocusManager(),
-		mounts:      newMountState(),
-		batch:       newBatchContext(),
+		terminal:     NewMockTerminal(width, height),
+		buffer:       NewBuffer(width, height),
+		stopCh:       make(chan struct{}),
+		events:       make(chan Event, 256),
+		watcherQueue: make(chan func(), 256),
+		focus:        newFocusManager(),
+		mounts:       newMountState(),
+		batch:        newBatchContext(),
 	}
 }
 

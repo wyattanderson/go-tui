@@ -7,12 +7,12 @@ import (
 
 func TestApp_QueueUpdate_EnqueuesSafely(t *testing.T) {
 	app := &App{
-		focus:      newFocusManager(),
-		buffer:     NewBuffer(80, 24),
-		eventQueue: make(chan func(), 256),
-		updateQueue: make(chan func(), 256),
-		stopCh:     make(chan struct{}),
-		stopped:    false,
+		focus:        newFocusManager(),
+		buffer:       NewBuffer(80, 24),
+		events:       make(chan Event, 256),
+		watcherQueue: make(chan func(), 256),
+		stopCh:       make(chan struct{}),
+		stopped:      false,
 	}
 
 	var executed bool
@@ -20,10 +20,10 @@ func TestApp_QueueUpdate_EnqueuesSafely(t *testing.T) {
 		executed = true
 	})
 
-	// Read from queue and execute
+	// Read from events channel and dispatch
 	select {
-	case fn := <-app.updateQueue:
-		fn()
+	case ev := <-app.events:
+		app.Dispatch(ev)
 		if !executed {
 			t.Error("Queued function was not executed correctly")
 		}
@@ -34,12 +34,12 @@ func TestApp_QueueUpdate_EnqueuesSafely(t *testing.T) {
 
 func TestApp_QueueUpdate_FromGoroutine(t *testing.T) {
 	app := &App{
-		focus:      newFocusManager(),
-		buffer:     NewBuffer(80, 24),
-		eventQueue: make(chan func(), 256),
-		updateQueue: make(chan func(), 256),
-		stopCh:     make(chan struct{}),
-		stopped:    false,
+		focus:        newFocusManager(),
+		buffer:       NewBuffer(80, 24),
+		events:       make(chan Event, 256),
+		watcherQueue: make(chan func(), 256),
+		stopCh:       make(chan struct{}),
+		stopped:      false,
 	}
 
 	var executed int
@@ -58,8 +58,8 @@ func TestApp_QueueUpdate_FromGoroutine(t *testing.T) {
 	go func() {
 		for i := 0; i < 10; i++ {
 			select {
-			case fn := <-app.updateQueue:
-				fn()
+			case ev := <-app.events:
+				app.Dispatch(ev)
 			case <-time.After(100 * time.Millisecond):
 				return
 			}
@@ -77,38 +77,42 @@ func TestApp_QueueUpdate_FromGoroutine(t *testing.T) {
 	}
 }
 
-func TestApp_QueueUpdate_DropsOldestWhenFull(t *testing.T) {
+func TestApp_QueueUpdate_BlocksWhenFull(t *testing.T) {
 	app := &App{
-		focus:       newFocusManager(),
-		buffer:      NewBuffer(80, 24),
-		eventQueue:  make(chan func(), 4),
-		updateQueue: make(chan func(), 1),
-		stopCh:      make(chan struct{}),
+		focus:        newFocusManager(),
+		buffer:       NewBuffer(80, 24),
+		events:       make(chan Event, 2),
+		watcherQueue: make(chan func(), 2),
+		stopCh:       make(chan struct{}),
 	}
 
 	seen := make([]int, 0, 2)
 	app.QueueUpdate(func() { seen = append(seen, 1) })
 	app.QueueUpdate(func() { seen = append(seen, 2) })
 
-	select {
-	case fn := <-app.updateQueue:
-		fn()
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("expected queued update")
+	// Drain both events
+	for i := 0; i < 2; i++ {
+		select {
+		case ev := <-app.events:
+			app.Dispatch(ev)
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("expected queued update")
+		}
 	}
 
-	if len(seen) != 1 || seen[0] != 2 {
-		t.Fatalf("expected only newest update to run, got %v", seen)
+	if len(seen) != 2 || seen[0] != 1 || seen[1] != 2 {
+		t.Fatalf("expected both updates to run in order, got %v", seen)
 	}
 }
 
 func TestApp_SetGlobalKeyHandler(t *testing.T) {
 	app := &App{
-		focus:      newFocusManager(),
-		buffer:     NewBuffer(80, 24),
-		eventQueue: make(chan func(), 256),
-		stopCh:     make(chan struct{}),
-		stopped:    false,
+		focus:        newFocusManager(),
+		buffer:       NewBuffer(80, 24),
+		events:       make(chan Event, 256),
+		watcherQueue: make(chan func(), 256),
+		stopCh:       make(chan struct{}),
+		stopped:      false,
 	}
 
 	var handlerCalled bool
@@ -139,12 +143,13 @@ func TestApp_GlobalKeyHandler_ConsumesEvent(t *testing.T) {
 	focusable.handled = false
 
 	app := &App{
-		focus:      newFocusManager(),
-		buffer:     NewBuffer(80, 24),
-		reader:     mockReader,
-		eventQueue: make(chan func(), 256),
-		stopCh:     make(chan struct{}),
-		stopped:    false,
+		focus:        newFocusManager(),
+		buffer:       NewBuffer(80, 24),
+		reader:       mockReader,
+		events:       make(chan Event, 256),
+		watcherQueue: make(chan func(), 256),
+		stopCh:       make(chan struct{}),
+		stopped:      false,
 	}
 	app.focus.Register(focusable)
 	app.focus.SetFocus(focusable)
@@ -158,15 +163,9 @@ func TestApp_GlobalKeyHandler_ConsumesEvent(t *testing.T) {
 		return false
 	})
 
-	// Simulate the event dispatch logic from readInputEvents
+	// Dispatch goes through Dispatch() which handles globalKeyHandler in legacy path
 	event := KeyEvent{Key: KeyRune, Rune: 'q'}
-
-	// Global handler should consume the event
-	if app.globalKeyHandler != nil && app.globalKeyHandler(event) {
-		// Event consumed, don't dispatch further
-	} else {
-		app.Dispatch(event)
-	}
+	app.Dispatch(event)
 
 	if !globalHandlerCalled {
 		t.Error("Global handler was not called")
@@ -182,11 +181,12 @@ func TestApp_GlobalKeyHandler_PassesEvent(t *testing.T) {
 	focusable.handled = true
 
 	app := &App{
-		focus:      newFocusManager(),
-		buffer:     NewBuffer(80, 24),
-		eventQueue: make(chan func(), 256),
-		stopCh:     make(chan struct{}),
-		stopped:    false,
+		focus:        newFocusManager(),
+		buffer:       NewBuffer(80, 24),
+		events:       make(chan Event, 256),
+		watcherQueue: make(chan func(), 256),
+		stopCh:       make(chan struct{}),
+		stopped:      false,
 	}
 	app.focus.Register(focusable)
 	app.focus.SetFocus(focusable)
@@ -198,17 +198,9 @@ func TestApp_GlobalKeyHandler_PassesEvent(t *testing.T) {
 		return false
 	})
 
-	// Simulate the event dispatch logic from readInputEvents
+	// Dispatch goes through Dispatch() which handles globalKeyHandler in legacy path
 	event := KeyEvent{Key: KeyRune, Rune: 'j'}
-
-	// Global handler should NOT consume the event
-	consumed := false
-	if app.globalKeyHandler != nil && app.globalKeyHandler(event) {
-		consumed = true
-	}
-	if !consumed {
-		app.Dispatch(event)
-	}
+	app.Dispatch(event)
 
 	if !globalHandlerCalled {
 		t.Error("Global handler was not called")
@@ -226,27 +218,28 @@ func TestApp_EventBatching(t *testing.T) {
 	mockReader := NewMockEventReader()
 
 	app := &App{
-		focus:      newFocusManager(),
-		buffer:     NewBuffer(80, 24),
-		reader:     mockReader,
-		root:       New(),
-		eventQueue: make(chan func(), 256),
-		stopCh:     make(chan struct{}),
-		stopped:    false,
+		focus:        newFocusManager(),
+		buffer:       NewBuffer(80, 24),
+		reader:       mockReader,
+		root:         New(),
+		events:       make(chan Event, 256),
+		watcherQueue: make(chan func(), 256),
+		stopCh:       make(chan struct{}),
+		stopped:      false,
 	}
 
 	// Queue multiple events that mark dirty
 	for i := 0; i < 5; i++ {
-		app.eventQueue <- func() {
+		app.events <- UpdateEvent{fn: func() {
 			testApp.MarkDirty()
-		}
+		}}
 	}
 
 	// Process one batch manually (simulating the Run() loop logic)
 	// Block until at least one event arrives
 	select {
-	case handler := <-app.eventQueue:
-		handler()
+	case ev := <-app.events:
+		app.Dispatch(ev)
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Expected event in queue")
 	}
@@ -255,8 +248,8 @@ func TestApp_EventBatching(t *testing.T) {
 drain:
 	for {
 		select {
-		case handler := <-app.eventQueue:
-			handler()
+		case ev := <-app.events:
+			app.Dispatch(ev)
 		default:
 			break drain
 		}

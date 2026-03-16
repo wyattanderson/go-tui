@@ -47,10 +47,8 @@ func (a *App) Run() error {
 	drain:
 		for time.Now().Before(eventDeadline) {
 			select {
-			case handler := <-a.eventQueue:
-				handler()
-			case handler := <-a.updateQueue:
-				handler()
+			case ev := <-a.events:
+				a.Dispatch(ev)
 			case <-a.stopCh:
 				return nil
 			default:
@@ -100,32 +98,9 @@ func (a *App) QueueUpdate(fn func()) {
 	if fn == nil {
 		return
 	}
-	if a.updateQueue == nil {
-		// Back-compat path for tests/mocks that construct App manually.
-		select {
-		case a.eventQueue <- fn:
-		case <-a.stopCh:
-		default:
-		}
-		return
-	}
-
-	// Bounded queue: drop oldest background update when full.
-	// Input/watcher events use eventQueue and are lossless.
-	for {
-		select {
-		case a.updateQueue <- fn:
-			return
-		case <-a.stopCh:
-			return
-		default:
-			select {
-			case <-a.updateQueue:
-			case <-a.stopCh:
-				return
-			default:
-			}
-		}
+	select {
+	case a.events <- UpdateEvent{fn: fn}:
+	case <-a.stopCh:
 	}
 }
 
