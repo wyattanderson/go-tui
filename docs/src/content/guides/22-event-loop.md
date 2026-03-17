@@ -69,6 +69,7 @@ func stepMode() {
     defer ticker.Stop()
 
     for {
+        // Wait for next frame (acts as a frame rate limiter)
         select {
         case <-ticker.C:
         case <-app.StopCh():
@@ -139,9 +140,11 @@ This is the cleanest option when you have external event sources, because each s
 
 ## When to Use Which
 
-- **`Run()`** works for most apps. External data goes through `QueueUpdate` or channel watchers.
-- **`Step()`** gives you control over frame timing and lets you drain your own channels between frames without `QueueUpdate`.
-- **`Events()` + select** lets you put external channels in the same select as go-tui input events.
+Start with **`Run()`**. It handles frame timing, signal setup, and event dispatch internally. If your app receives external data, `QueueUpdate` and channel watchers cover most cases without leaving `Run()`.
+
+Use **`Step()`** when you need to control frame timing yourself, for example to implement variable frame rates, skip rendering during heavy computation, or pause the render loop entirely while waiting for a resource. It also lets you drain your own channels between frames without `QueueUpdate`, which avoids the overhead of serializing closures through the event queue.
+
+Use **`Events()` + select** when you are building something that is driven by multiple event sources at once, like a chat client that handles keyboard input, incoming messages, and connection status changes in a single loop. Each source gets its own select case, which is the standard Go pattern for multiplexing channels.
 
 ## Complete Example
 

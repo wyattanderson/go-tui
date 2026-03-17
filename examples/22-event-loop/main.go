@@ -115,6 +115,7 @@ func stepMode() {
 	defer ticker.Stop()
 
 	for {
+		// Wait for next frame (acts as a frame rate limiter)
 		select {
 		case <-ticker.C:
 		case <-app.StopCh():
