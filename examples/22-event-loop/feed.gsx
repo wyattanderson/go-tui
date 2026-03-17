@@ -2,23 +2,44 @@ package main
 
 import (
 	"fmt"
+	"math"
 	tui "github.com/grindlemire/go-tui"
 )
 
 type feedApp struct {
-	messages  *tui.State[[]string]
-	paused    *tui.State[bool]
-	mode      string
-	scrollRef *tui.Ref
+	messages      *tui.State[[]string]
+	paused        *tui.State[bool]
+	scrollY       *tui.State[int]
+	stickToBottom *tui.State[bool]
+	content       *tui.Ref
+	mode          string
 }
 
 func NewFeedApp(mode string) *feedApp {
 	return &feedApp{
-		messages:  tui.NewState([]string{}),
-		paused:    tui.NewState(false),
-		mode:      mode,
-		scrollRef: tui.NewRef(),
+		messages:      tui.NewState([]string{}),
+		paused:        tui.NewState(false),
+		scrollY:       tui.NewState(0),
+		stickToBottom: tui.NewState(true),
+		content:       tui.NewRef(),
+		mode:          mode,
 	}
+}
+
+func (f *feedApp) scrollBy(delta int) {
+	el := f.content.El()
+	if el == nil {
+		return
+	}
+	_, maxY := el.MaxScroll()
+	newY := f.scrollY.Get() + delta
+	if newY < 0 {
+		newY = 0
+	} else if newY > maxY {
+		newY = maxY
+	}
+	f.scrollY.Set(newY)
+	f.stickToBottom.Set(newY >= maxY)
 }
 
 func (f *feedApp) KeyMap() tui.KeyMap {
@@ -28,15 +49,41 @@ func (f *feedApp) KeyMap() tui.KeyMap {
 		tui.OnStop(tui.Rune('p'), func(ke tui.KeyEvent) {
 			f.paused.Set(!f.paused.Get())
 		}),
+		tui.On(tui.Rune('j'), func(ke tui.KeyEvent) { f.scrollBy(1) }),
+		tui.On(tui.Rune('k'), func(ke tui.KeyEvent) { f.scrollBy(-1) }),
+		tui.On(tui.KeyUp, func(ke tui.KeyEvent) { f.scrollBy(-1) }),
+		tui.On(tui.KeyDown, func(ke tui.KeyEvent) { f.scrollBy(1) }),
+		tui.On(tui.KeyPageUp, func(ke tui.KeyEvent) { f.scrollBy(-10) }),
+		tui.On(tui.KeyPageDown, func(ke tui.KeyEvent) { f.scrollBy(10) }),
+		tui.On(tui.KeyHome, func(ke tui.KeyEvent) {
+			f.scrollY.Set(0)
+			f.stickToBottom.Set(false)
+		}),
+		tui.On(tui.KeyEnd, func(ke tui.KeyEvent) {
+			f.scrollY.Set(math.MaxInt)
+			f.stickToBottom.Set(true)
+		}),
 	}
+}
+
+func (f *feedApp) HandleMouse(me tui.MouseEvent) bool {
+	switch me.Button {
+	case tui.MouseWheelUp:
+		f.scrollBy(-1)
+		return true
+	case tui.MouseWheelDown:
+		f.scrollBy(1)
+		return true
+	}
+	return false
 }
 
 func (f *feedApp) AddMessage(msg string) {
 	f.messages.Update(func(msgs []string) []string {
 		return append(msgs, msg)
 	})
-	if el := f.scrollRef.El(); el != nil {
-		el.ScrollToBottom()
+	if f.stickToBottom.Get() {
+		f.scrollY.Set(math.MaxInt)
 	}
 }
 
@@ -58,13 +105,6 @@ func pauseClass(paused bool) string {
 	return "text-green font-bold"
 }
 
-func lastN(msgs []string, n int) []string {
-	if len(msgs) <= n {
-		return msgs
-	}
-	return msgs[len(msgs)-n:]
-}
-
 templ (f *feedApp) Render() {
 	<div class="flex-col h-full border-rounded border-cyan">
 		<div class="flex justify-between px-1 shrink-0">
@@ -75,8 +115,13 @@ templ (f *feedApp) Render() {
 			</div>
 		</div>
 		<hr />
-		<div class="flex-col grow p-1 min-h-0 overflow-y-scroll" ref={f.scrollRef}>
-			for _, msg := range lastN(f.messages.Get(), 100) {
+		<div
+			ref={f.content}
+			class="flex-col grow p-1 min-h-0"
+			scrollable={tui.ScrollVertical}
+			scrollOffset={0, f.scrollY.Get()}
+		>
+			for _, msg := range f.messages.Get() {
 				<span class="font-dim">{msg}</span>
 			}
 		</div>
@@ -84,6 +129,7 @@ templ (f *feedApp) Render() {
 		<div class="flex justify-between px-1 shrink-0">
 			<div class="flex gap-2">
 				<span class="font-dim">p: toggle</span>
+				<span class="font-dim">j/k: scroll</span>
 				<span class="font-dim">q: quit</span>
 			</div>
 			<div class="flex gap-2">

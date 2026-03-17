@@ -5,24 +5,45 @@ package main
 
 import (
 	"fmt"
+	"math"
 
 	tui "github.com/grindlemire/go-tui"
 )
 
 type feedApp struct {
-	messages  *tui.State[[]string]
-	paused    *tui.State[bool]
-	mode      string
-	scrollRef *tui.Ref
+	messages      *tui.State[[]string]
+	paused        *tui.State[bool]
+	scrollY       *tui.State[int]
+	stickToBottom *tui.State[bool]
+	content       *tui.Ref
+	mode          string
 }
 
 func NewFeedApp(mode string) *feedApp {
 	return &feedApp{
-		messages:  tui.NewState([]string{}),
-		paused:    tui.NewState(false),
-		mode:      mode,
-		scrollRef: tui.NewRef(),
+		messages:      tui.NewState([]string{}),
+		paused:        tui.NewState(false),
+		scrollY:       tui.NewState(0),
+		stickToBottom: tui.NewState(true),
+		content:       tui.NewRef(),
+		mode:          mode,
 	}
+}
+
+func (f *feedApp) scrollBy(delta int) {
+	el := f.content.El()
+	if el == nil {
+		return
+	}
+	_, maxY := el.MaxScroll()
+	newY := f.scrollY.Get() + delta
+	if newY < 0 {
+		newY = 0
+	} else if newY > maxY {
+		newY = maxY
+	}
+	f.scrollY.Set(newY)
+	f.stickToBottom.Set(newY >= maxY)
 }
 
 func (f *feedApp) KeyMap() tui.KeyMap {
@@ -32,15 +53,41 @@ func (f *feedApp) KeyMap() tui.KeyMap {
 		tui.OnStop(tui.Rune('p'), func(ke tui.KeyEvent) {
 			f.paused.Set(!f.paused.Get())
 		}),
+		tui.On(tui.Rune('j'), func(ke tui.KeyEvent) { f.scrollBy(1) }),
+		tui.On(tui.Rune('k'), func(ke tui.KeyEvent) { f.scrollBy(-1) }),
+		tui.On(tui.KeyUp, func(ke tui.KeyEvent) { f.scrollBy(-1) }),
+		tui.On(tui.KeyDown, func(ke tui.KeyEvent) { f.scrollBy(1) }),
+		tui.On(tui.KeyPageUp, func(ke tui.KeyEvent) { f.scrollBy(-10) }),
+		tui.On(tui.KeyPageDown, func(ke tui.KeyEvent) { f.scrollBy(10) }),
+		tui.On(tui.KeyHome, func(ke tui.KeyEvent) {
+			f.scrollY.Set(0)
+			f.stickToBottom.Set(false)
+		}),
+		tui.On(tui.KeyEnd, func(ke tui.KeyEvent) {
+			f.scrollY.Set(math.MaxInt)
+			f.stickToBottom.Set(true)
+		}),
 	}
+}
+
+func (f *feedApp) HandleMouse(me tui.MouseEvent) bool {
+	switch me.Button {
+	case tui.MouseWheelUp:
+		f.scrollBy(-1)
+		return true
+	case tui.MouseWheelDown:
+		f.scrollBy(1)
+		return true
+	}
+	return false
 }
 
 func (f *feedApp) AddMessage(msg string) {
 	f.messages.Update(func(msgs []string) []string {
 		return append(msgs, msg)
 	})
-	if el := f.scrollRef.El(); el != nil {
-		el.ScrollToBottom()
+	if f.stickToBottom.Get() {
+		f.scrollY.Set(math.MaxInt)
 	}
 }
 
@@ -60,13 +107,6 @@ func pauseClass(paused bool) string {
 		return "text-yellow font-bold"
 	}
 	return "text-green font-bold"
-}
-
-func lastN(msgs []string, n int) []string {
-	if len(msgs) <= n {
-		return msgs
-	}
-	return msgs[len(msgs)-n:]
 }
 
 func (f *feedApp) Render(app *tui.App) *tui.Element {
@@ -114,9 +154,10 @@ func (f *feedApp) Render(app *tui.App) *tui.Element {
 		tui.WithPadding(1),
 		tui.WithMinHeight(0),
 		tui.WithScrollable(tui.ScrollVertical),
+		tui.WithScrollOffset(0, f.scrollY.Get()),
 	)
-	f.scrollRef.Set(__tui_7)
-	for __idx_0, msg := range lastN(f.messages.Get(), 100) {
+	f.content.Set(__tui_7)
+	for __idx_0, msg := range f.messages.Get() {
 		_ = __idx_0
 		__tui_8 := tui.New(
 			tui.WithText(msg),
@@ -145,25 +186,30 @@ func (f *feedApp) Render(app *tui.App) *tui.Element {
 	)
 	__tui_11.AddChild(__tui_12)
 	__tui_13 := tui.New(
-		tui.WithText("q: quit"),
+		tui.WithText("j/k: scroll"),
 		tui.WithTextStyle(tui.NewStyle().Dim()),
 	)
 	__tui_11.AddChild(__tui_13)
-	__tui_10.AddChild(__tui_11)
 	__tui_14 := tui.New(
+		tui.WithText("q: quit"),
+		tui.WithTextStyle(tui.NewStyle().Dim()),
+	)
+	__tui_11.AddChild(__tui_14)
+	__tui_10.AddChild(__tui_11)
+	__tui_15 := tui.New(
 		tui.WithDisplay(tui.DisplayFlex), tui.WithDirection(tui.Row),
 		tui.WithGap(2),
 	)
-	__tui_15 := tui.New(
+	__tui_16 := tui.New(
 		tui.WithText(pauseLabel(f.paused.Get())),
 	)
-	__tui_14.AddChild(__tui_15)
-	__tui_16 := tui.New(
+	__tui_15.AddChild(__tui_16)
+	__tui_17 := tui.New(
 		tui.WithText(fmt.Sprintf("%d msgs", len(f.messages.Get()))),
 		tui.WithTextStyle(tui.NewStyle().Dim()),
 	)
-	__tui_14.AddChild(__tui_16)
-	__tui_10.AddChild(__tui_14)
+	__tui_15.AddChild(__tui_17)
+	__tui_10.AddChild(__tui_15)
 	__tui_0.AddChild(__tui_10)
 
 	return __tui_0
@@ -185,6 +231,12 @@ func (f *feedApp) BindApp(app *tui.App) {
 	}
 	if f.paused != nil {
 		f.paused.BindApp(app)
+	}
+	if f.scrollY != nil {
+		f.scrollY.BindApp(app)
+	}
+	if f.stickToBottom != nil {
+		f.stickToBottom.BindApp(app)
 	}
 }
 
