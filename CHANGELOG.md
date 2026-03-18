@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.8.0](https://github.com/grindlemire/go-tui/compare/v0.7.0...v0.8.0) (2026-03-18)
+
+
+### Features
+
+* add Events, DispatchEvents, Step methods for manual event loops ([419fcd6](https://github.com/grindlemire/go-tui/commit/419fcd6b42c9c18e3e724ccfc3d178c80412f055))
+* add Open lifecycle method, make Close idempotent ([1d2362a](https://github.com/grindlemire/go-tui/commit/1d2362adc189af097bbb83be51ed78321ce63321))
+* add UpdateEvent type for queued closures ([3a85fce](https://github.com/grindlemire/go-tui/commit/3a85fce643e6fb013e219a94c5051d810c7d173b))
+* manual event loop API (Open/Events/Dispatch/Render/Close) ([973bf89](https://github.com/grindlemire/go-tui/commit/973bf892dcc5780b6d24620f2eb2c19228cc0e3a))
+* split event channels with input priority fan-in ([60730a0](https://github.com/grindlemire/go-tui/commit/60730a0d59333cae09bb42293fb1f5ee7c392918))
+
+
+### Bug Fixes
+
+* address code review findings ([142f8bb](https://github.com/grindlemire/go-tui/commit/142f8bb6c87588293e62131624365f125ab65279))
+* auto-scroll message feed to bottom ([7495525](https://github.com/grindlemire/go-tui/commit/7495525a494ae2835cb554fc989bd3c51492f512))
+* eliminate TOCTOU race in Run/Open and normalize struct alignment ([940ddd9](https://github.com/grindlemire/go-tui/commit/940ddd90b342a7824efb24969100d73d9616846d))
+* stop background goroutines on NewApp error path ([10d630d](https://github.com/grindlemire/go-tui/commit/10d630db63a751df5a58c115375e7fea52b7c237))
+* use proper sticky-scroll pattern for message feed ([bf79eb7](https://github.com/grindlemire/go-tui/commit/bf79eb7987c185180c09f87e90746b56121d7e88))
+
 ## [0.7.0](https://github.com/grindlemire/go-tui/compare/v0.6.1...v0.7.0) (2026-03-15)
 
 
