@@ -18,7 +18,7 @@ function useValueProps() {
       tag: "tui",
       label: "Terminal apps without the rendering pain",
       summary: "Describe your UI in markup, compile it to Go",
-      detail: "HTML-like .gsx templates with Tailwind classes compile to type-safe Go. No ANSI escapes, no manual cursor math, no rendering headaches.",
+      detail: "Write HTML-like templates intermingled with Go. The compiler handles rendering.",
       color: t.accent,
     },
     {
