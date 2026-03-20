@@ -8,7 +8,7 @@ func TestParser_CommentAttachment_InForLoop(t *testing.T) {
 	input := `package x
 
 templ List(items []string) {
-	@for _, item := range items { // loop comment
+	for _, item := range items { // loop comment
 		// comment before span
 		<span>{item}</span>
 	}
@@ -60,7 +60,7 @@ func TestParser_CommentAttachment_InIfStmt(t *testing.T) {
 	input := `package x
 
 templ Cond(show bool) {
-	@if show { // if comment
+	if show { // if comment
 		// comment before visible
 		<span>Visible</span>
 	}
@@ -108,7 +108,7 @@ func TestParser_CommentAttachment_EmptyForLoopBody(t *testing.T) {
 	input := `package x
 
 templ Empty() {
-	@for _, item := range items {
+	for _, item := range items {
 		// only a comment, no elements
 	}
 }`

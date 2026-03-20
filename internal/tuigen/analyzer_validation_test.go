@@ -39,7 +39,7 @@ func TestAnalyzer_ControlFlowValidation(t *testing.T) {
 			input: `package x
 templ Test(items []string) {
 	<div>
-		@for _, item := range items {
+		for _, item := range items {
 			<span>{item}</span>
 		}
 	</div>
@@ -50,7 +50,7 @@ templ Test(items []string) {
 			input: `package x
 templ Test(items []string) {
 	<div>
-		@for _, item := range items {
+		for _, item := range items {
 			<badTag />
 		}
 	</div>
@@ -62,7 +62,7 @@ templ Test(items []string) {
 			input: `package x
 templ Test(show bool) {
 	<div>
-		@if show {
+		if show {
 			<span>visible</span>
 		}
 	</div>
@@ -73,7 +73,7 @@ templ Test(show bool) {
 			input: `package x
 templ Test(show bool) {
 	<div>
-		@if show {
+		if show {
 			<badTag />
 		}
 	</div>
@@ -85,9 +85,9 @@ templ Test(show bool) {
 			input: `package x
 templ Test(show bool) {
 	<div>
-		@if show {
+		if show {
 			<span>yes</span>
-		} @else {
+		} else {
 			<badTag />
 		}
 	</div>

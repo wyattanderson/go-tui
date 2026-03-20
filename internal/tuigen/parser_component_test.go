@@ -688,7 +688,7 @@ templ (s *sidebar) Render() {
 func TestParser_MethodTemplWithControlFlow(t *testing.T) {
 	input := `package x
 templ (s *sidebar) Render() {
-	@if s.expanded.Get() {
+	if s.expanded.Get() {
 		<div>
 			@ChildComponent(s.query)
 		</div>
@@ -711,7 +711,7 @@ templ (s *sidebar) Render() {
 		t.Errorf("Receiver = %q, want 's *sidebar'", comp.Receiver)
 	}
 
-	// Body should have an @if
+	// Body should have an if
 	if len(comp.Body) != 1 {
 		t.Fatalf("expected 1 body node, got %d", len(comp.Body))
 	}
@@ -721,7 +721,7 @@ templ (s *sidebar) Render() {
 		t.Fatalf("body[0]: expected *IfStmt, got %T", comp.Body[0])
 	}
 
-	// The @if should contain a <div> which contains @ChildComponent
+	// The if should contain a <div> which contains @ChildComponent
 	if len(ifStmt.Then) != 1 {
 		t.Fatalf("expected 1 then node, got %d", len(ifStmt.Then))
 	}
@@ -732,13 +732,13 @@ templ (s *sidebar) Render() {
 
 	call := findComponentCall([]Node{elem})
 	if call == nil {
-		t.Fatal("expected ComponentCall inside @if body")
+		t.Fatal("expected ComponentCall inside if body")
 	}
 	if call.Name != "ChildComponent" {
 		t.Errorf("call.Name = %q, want 'ChildComponent'", call.Name)
 	}
 	if !call.IsStructMount {
-		t.Error("ComponentCall inside method templ @if should have IsStructMount=true")
+		t.Error("ComponentCall inside method templ if should have IsStructMount=true")
 	}
 }
 

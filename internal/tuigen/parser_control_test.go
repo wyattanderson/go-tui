@@ -7,7 +7,7 @@ import (
 func TestParser_LetBinding(t *testing.T) {
 	input := `package x
 templ Test() {
-	@let myText = <span>Hello</span>
+	myText := <span>Hello</span>
 	<div></div>
 }`
 
@@ -54,7 +54,7 @@ func TestParser_ForLoop(t *testing.T) {
 		"index and value": {
 			input: `package x
 templ Test() {
-	@for i, item := range items {
+	for i, item := range items {
 		<span>Hello</span>
 	}
 }`,
@@ -65,7 +65,7 @@ templ Test() {
 		"underscore index": {
 			input: `package x
 templ Test() {
-	@for _, item := range items {
+	for _, item := range items {
 		<span>Hello</span>
 	}
 }`,
@@ -76,7 +76,7 @@ templ Test() {
 		"value only": {
 			input: `package x
 templ Test() {
-	@for item := range items {
+	for item := range items {
 		<span>Hello</span>
 	}
 }`,
@@ -128,7 +128,7 @@ func TestParser_IfStatement(t *testing.T) {
 		"simple if": {
 			input: `package x
 templ Test() {
-	@if showHeader {
+	if showHeader {
 		<span>Header</span>
 	}
 }`,
@@ -138,9 +138,9 @@ templ Test() {
 		"if with else": {
 			input: `package x
 templ Test() {
-	@if isLoading {
+	if isLoading {
 		<span>Loading</span>
-	} @else {
+	} else {
 		<span>Done</span>
 	}
 }`,
@@ -150,7 +150,7 @@ templ Test() {
 		"complex condition": {
 			input: `package x
 templ Test() {
-	@if err != nil {
+	if err != nil {
 		<span>Error</span>
 	}
 }`,
@@ -193,11 +193,11 @@ templ Test() {
 func TestParser_IfElseIf(t *testing.T) {
 	input := `package x
 templ Test() {
-	@if a {
+	if a {
 		<span>A</span>
-	} @else @if b {
+	} else if b {
 		<span>B</span>
-	} @else {
+	} else {
 		<span>C</span>
 	}
 }`
@@ -243,10 +243,10 @@ func TestParser_ControlFlowInChildren(t *testing.T) {
 	input := `package x
 templ Test(items []string) {
 	<div>
-		@for _, item := range items {
+		for _, item := range items {
 			<span>{item}</span>
 		}
-		@if len(items) == 0 {
+		if len(items) == 0 {
 			<span>No items</span>
 		}
 	</div>
@@ -420,7 +420,7 @@ func TestParser_GoStatementStopsAtClosingBrace(t *testing.T) {
 	// where } belongs to the parent, not the statement.
 	input := `package x
 templ Test() {
-	@if condition {
+	if condition {
 		log.Error(err)
 	}
 }`

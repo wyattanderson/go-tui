@@ -377,7 +377,7 @@ func TestParser_RefAttributeWithKey(t *testing.T) {
 	input := `package x
 templ Test(items []Item) {
 	<ul>
-		@for _, item := range items {
+		for _, item := range items {
 			<li ref={items} key={item.ID}>{item.Name}</li>
 		}
 	</ul>

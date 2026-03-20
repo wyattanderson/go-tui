@@ -18,7 +18,7 @@ templ X(a int, b string) {
 `))
 	f.Add([]byte(`package test
 templ Loop(items []string) {
-	@for _, item := range items {
+	for _, item := range items {
 		<span>{item}</span>
 	}
 }

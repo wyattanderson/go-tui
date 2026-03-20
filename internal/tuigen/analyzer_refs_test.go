@@ -16,7 +16,7 @@ func TestAnalyzer_LetBindingValidation(t *testing.T) {
 		"valid let binding": {
 			input: `package x
 templ Test() {
-	@let myText = <span>hello</span>
+	myText := <span>hello</span>
 	<div></div>
 }`,
 			wantError: false,
@@ -24,7 +24,7 @@ templ Test() {
 		"let binding with invalid element": {
 			input: `package x
 templ Test() {
-	@let myText = <badTag />
+	myText := <badTag />
 	<div></div>
 }`,
 			wantError:     true,
@@ -33,7 +33,7 @@ templ Test() {
 		"let binding with invalid attribute": {
 			input: `package x
 templ Test() {
-	@let myText = <span badAttr="value">hello</span>
+	myText := <span badAttr="value">hello</span>
 	<div></div>
 }`,
 			wantError:     true,
@@ -111,9 +111,9 @@ templ Test() {
 		"duplicate ref name across branches": {
 			input: `package x
 templ Test(show bool) {
-	@if show {
+	if show {
 		<div ref={content}></div>
-	} @else {
+	} else {
 		<div ref={content}></div>
 	}
 }`,
@@ -155,7 +155,7 @@ func TestAnalyzer_RefInLoop(t *testing.T) {
 			input: `package x
 templ Test(items []string) {
 	<ul>
-		@for _, item := range items {
+		for _, item := range items {
 			<li ref={items}>{item}</li>
 		}
 	</ul>
@@ -166,7 +166,7 @@ templ Test(items []string) {
 			input: `package x
 templ Test(items []Item) {
 	<ul>
-		@for _, item := range items {
+		for _, item := range items {
 			<li ref={items} key={item.ID}>{item.Name}</li>
 		}
 	</ul>
@@ -208,7 +208,7 @@ func TestAnalyzer_RefInConditional(t *testing.T) {
 	input := `package x
 templ Test(show bool) {
 	<div>
-		@if show {
+		if show {
 			<span ref={label}>hello</span>
 		}
 	</div>
@@ -226,10 +226,10 @@ func TestAnalyzer_CollectRefs(t *testing.T) {
 templ Test(items []Item, show bool) {
 	<div>
 		<div ref={header}></div>
-		@if show {
+		if show {
 			<span ref={label}>hello</span>
 		}
-		@for _, item := range items {
+		for _, item := range items {
 			<li ref={items}>{item.Name}</li>
 		}
 	</div>

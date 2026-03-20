@@ -307,7 +307,7 @@ templ (a *myApp) Render() {
 type sidebar struct{}
 
 templ (s *sidebar) Render() {
-	@if true {
+	if true {
 		<div><span>visible</span></div>
 	}
 }`,
@@ -581,7 +581,7 @@ func TestGenerator_ReactiveIf(t *testing.T) {
 templ Toggle() {
 	count := tui.NewState(0)
 	<div>
-		@if count.Get() == 0 {
+		if count.Get() == 0 {
 			<span>{"zero"}</span>
 		}
 	</div>
@@ -601,9 +601,9 @@ templ Toggle() {
 templ Toggle() {
 	count := tui.NewState(0)
 	<div>
-		@if count.Get() >= 5 {
+		if count.Get() >= 5 {
 			<span>{"high"}</span>
-		} @else {
+		} else {
 			<span>{"low"}</span>
 		}
 	</div>
@@ -622,7 +622,7 @@ templ Toggle() {
 			input: `package x
 templ Static(show bool) {
 	<div>
-		@if show {
+		if show {
 			<span>{"visible"}</span>
 		}
 	</div>
@@ -640,8 +640,8 @@ templ Static(show bool) {
 templ LoopCond(items []string) {
 	count := tui.NewState(0)
 	<div>
-		@for _, item := range items {
-			@if count.Get() > 0 {
+		for _, item := range items {
+			if count.Get() > 0 {
 				<span>{item}</span>
 			}
 		}
@@ -656,14 +656,14 @@ templ LoopCond(items []string) {
 				`count.Bind(func(_ int) { __update___loop_0() })`,
 			},
 			wantNotContains: []string{
-				"__cond_", // @if inside @for stays non-reactive
+				"__cond_", // if inside for stays non-reactive
 			},
 		},
 		"for loop without state stays plain": {
 			input: `package x
 templ PlainLoop(items []string) {
 	<div>
-		@for _, item := range items {
+		for _, item := range items {
 			<span>{item}</span>
 		}
 	</div>
@@ -681,7 +681,7 @@ templ Multi() {
 	count := tui.NewState(0)
 	name := tui.NewState("hello")
 	<div>
-		@if count.Get() > 0 {
+		if count.Get() > 0 {
 			<span>{fmt.Sprintf("%s: %d", name.Get(), count.Get())}</span>
 		}
 	</div>
@@ -723,9 +723,9 @@ type panel struct {
 }
 
 templ (p *panel) Render() {
-	@if p.show.Get() {
+	if p.show.Get() {
 		<span>{"on"}</span>
-	} @else {
+	} else {
 		<span>{"off"}</span>
 	}
 }`
