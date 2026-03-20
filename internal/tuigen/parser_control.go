@@ -4,46 +4,7 @@ import (
 	"strings"
 )
 
-// parseLet parses @let name = <element>
-func (p *Parser) parseLet() *LetBinding {
-	pos := p.position()
-
-	if !p.expect(TokenAtLet) {
-		return nil
-	}
-
-	if p.current.Type != TokenIdent {
-		p.errors.AddError(p.position(), "expected variable name after @let")
-		return nil
-	}
-
-	name := p.current.Literal
-	p.advance()
-
-	if !p.expect(TokenEquals) {
-		return nil
-	}
-
-	p.skipNewlines()
-
-	if p.current.Type != TokenLAngle {
-		p.errors.AddError(p.position(), "expected element after @let =")
-		return nil
-	}
-
-	elem := p.parseElement()
-	if elem == nil {
-		return nil
-	}
-
-	return &LetBinding{
-		Name:     name,
-		Element:  elem,
-		Position: pos,
-	}
-}
-
-// parseFor parses @for i, v := range items { ... }
+// parseFor parses for i, v := range items { ... }
 func (p *Parser) parseFor() *ForLoop {
 	pos := p.position()
 

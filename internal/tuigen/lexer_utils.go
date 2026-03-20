@@ -138,7 +138,7 @@ func (l *Lexer) readIdentifier() Token {
 func (l *Lexer) readAtKeyword() Token {
 	l.readChar() // consume @
 
-	// Save the position of the keyword start (after @) for migrated keywords
+	// Save the position of the keyword start (after @) for deprecated keywords
 	kwLine := l.line
 	kwColumn := l.column
 	kwStartPos := l.pos
@@ -150,28 +150,24 @@ func (l *Lexer) readAtKeyword() Token {
 	keyword := l.source[startPos:l.pos]
 
 	switch keyword {
+	case "for", "if", "else":
+		// Record diagnostic error (shows as squiggly underline in LSP).
+		// Still emit the correct bare token so the parser can continue.
+		l.errors.AddErrorf(l.position(), "@%s is no longer supported, use bare \"%s\" instead", keyword, keyword)
+		l.tokenLine = kwLine
+		l.tokenColumn = kwColumn
+		l.tokenStartPos = kwStartPos
+		switch keyword {
+		case "for":
+			return l.makeToken(TokenFor, "for")
+		case "if":
+			return l.makeToken(TokenIf, "if")
+		default: // "else"
+			return l.makeToken(TokenElse, "else")
+		}
 	case "let":
-		// @let keeps position at @, literal "@let" (length 4 matches position)
-		return l.makeToken(TokenAtLet, "@let")
-	case "for":
-		// Override position to keyword start (after @)
-		l.tokenLine = kwLine
-		l.tokenColumn = kwColumn
-		l.tokenStartPos = kwStartPos
-		// Backward compat: @for emits same token as bare "for"
-		return l.makeToken(TokenFor, "for")
-	case "if":
-		// Override position to keyword start (after @)
-		l.tokenLine = kwLine
-		l.tokenColumn = kwColumn
-		l.tokenStartPos = kwStartPos
-		return l.makeToken(TokenIf, "if")
-	case "else":
-		// Override position to keyword start (after @)
-		l.tokenLine = kwLine
-		l.tokenColumn = kwColumn
-		l.tokenStartPos = kwStartPos
-		return l.makeToken(TokenElse, "else")
+		l.errors.AddErrorf(l.position(), "@let is no longer supported, use \"name := <element>\" instead")
+		return l.makeToken(TokenError, "@let")
 	default:
 		if len(keyword) > 0 {
 			firstRune, _ := utf8.DecodeRuneInString(keyword)
