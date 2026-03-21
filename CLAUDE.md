@@ -168,7 +168,7 @@ Use this section to quickly find the right files for a given change.
 
 The compiler pipeline is: **Lexer → Parser → Analyzer → Generator**
 
-- `internal/tuigen/token.go` — TokenType enum (79 types), Token struct, Position
+- `internal/tuigen/token.go` — TokenType enum, Token struct, Position
 - **Lexer** (`internal/tuigen/`):
   - `lexer.go` — Main Lexer struct, NewLexer(), Next()
   - `lexer_utils.go` — Helper functions (readIdent, readString, isLetter)
