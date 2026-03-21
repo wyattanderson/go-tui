@@ -148,7 +148,7 @@ func (p *printer) printLetBinding(let *tuigen.LetBinding) {
 
 	p.writeIndent()
 
-	// Always emit := (migrates old @let to short form)
+	// Always emit :=
 	p.write(let.Name)
 	p.write(" := ")
 

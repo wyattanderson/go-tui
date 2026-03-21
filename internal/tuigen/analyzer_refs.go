@@ -11,7 +11,7 @@ import (
 // - Any valid Go expression for struct components (e.g., s.content)
 // - Reserved export name 'Root' (capitalized ref name must not be "Root")
 // - Unique names within the component (for function components only)
-// - key attribute only valid inside @for loops
+// - key attribute only valid inside for loops
 // - Determines ref kind from context (single, list, or map)
 func (a *Analyzer) validateRefs(comp *Component) []RefInfo {
 	names := make(map[string]Position)
@@ -141,7 +141,7 @@ func (a *Analyzer) CollectRefs(comp *Component) []RefInfo {
 	return a.validateRefs(comp)
 }
 
-// collectLetBindings traverses nodes to collect all @let binding names.
+// collectLetBindings traverses nodes to collect all := binding names.
 func (a *Analyzer) collectLetBindings(nodes []Node) {
 	for _, node := range nodes {
 		switch n := node.(type) {
@@ -194,7 +194,7 @@ func (a *Analyzer) containsChildrenSlot(nodes []Node) bool {
 	return false
 }
 
-// transformElementRefs transforms GoExpr nodes that reference @let bindings into RawGoExpr.
+// transformElementRefs transforms GoExpr nodes that reference := bindings into RawGoExpr.
 func (a *Analyzer) transformElementRefs(nodes []Node) []Node {
 	result := make([]Node, len(nodes))
 	for i, node := range nodes {
@@ -207,7 +207,7 @@ func (a *Analyzer) transformElementRefs(nodes []Node) []Node {
 func (a *Analyzer) transformNode(node Node) Node {
 	switch n := node.(type) {
 	case *GoExpr:
-		// Check if this is a simple identifier that matches a @let binding
+		// Check if this is a simple identifier that matches a := binding
 		if isSimpleIdentifier(n.Code) {
 			if _, ok := a.letBindings[n.Code]; ok {
 				a.letBindings[n.Code] = true

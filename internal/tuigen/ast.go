@@ -89,7 +89,7 @@ type Component struct {
 	ReceiverName string // Receiver variable name, e.g. "s" (empty for function components)
 	ReceiverType string // Receiver type, e.g. "*sidebar" (empty for function components)
 	// Comment fields
-	LeadingComments  *CommentGroup   // Doc comments before @component
+	LeadingComments  *CommentGroup   // Doc comments before component
 	TrailingComments *CommentGroup   // Comments on same line after opening {
 	OrphanComments   []*CommentGroup // Comments in body not attached to any node
 }
@@ -201,14 +201,14 @@ func (t *TextContent) node()         {}
 func (t *TextContent) Pos() Position { return t.Position }
 
 // LetBinding represents a variable binding: name := <element>, name := @Component(), name := expr,
-// var name = <element>, or the legacy @let name = <element>.
+// or var name = <element>.
 type LetBinding struct {
 	Name            string
 	Element         *Element       // RHS is an element (e.g., <span>Hello</span>)
 	Call            *ComponentCall // RHS is a component call (e.g., @MyComponent())
 	Expr            string         // RHS is a Go expression (e.g., fmt.Sprintf(...))
-	IsShortForm     bool           // true for :=, false for var or @let
-	IsVarForm       bool           // true for var form, false for @let form
+	IsShortForm     bool           // true for :=, false for var
+	IsVarForm       bool           // true for var form, false for := form
 	Position        Position
 	BlankLineBefore bool // blank line before this node in source
 	// Comment fields
@@ -219,7 +219,7 @@ type LetBinding struct {
 func (l *LetBinding) node()         {}
 func (l *LetBinding) Pos() Position { return l.Position }
 
-// ForLoop represents @for i, v := range items { ... }
+// ForLoop represents for i, v := range items { ... }
 type ForLoop struct {
 	Index           string // loop index variable (may be "_" or empty)
 	Value           string // loop value variable
@@ -228,7 +228,7 @@ type ForLoop struct {
 	Position        Position
 	BlankLineBefore bool // blank line before this node in source
 	// Comment fields
-	LeadingComments  *CommentGroup   // Comments immediately before @for
+	LeadingComments  *CommentGroup   // Comments immediately before for
 	TrailingComments *CommentGroup   // Comments on same line after opening {
 	OrphanComments   []*CommentGroup // Comments in body not attached to any node
 }
@@ -236,7 +236,7 @@ type ForLoop struct {
 func (f *ForLoop) node()         {}
 func (f *ForLoop) Pos() Position { return f.Position }
 
-// IfStmt represents @if condition { ... } @else { ... }
+// IfStmt represents if condition { ... } else { ... }
 type IfStmt struct {
 	Condition       string // Go expression for the condition
 	Then            []Node
@@ -244,7 +244,7 @@ type IfStmt struct {
 	Position        Position
 	BlankLineBefore bool // blank line before this node in source
 	// Comment fields
-	LeadingComments  *CommentGroup   // Comments immediately before @if
+	LeadingComments  *CommentGroup   // Comments immediately before if
 	TrailingComments *CommentGroup   // Comments on same line after opening {
 	OrphanComments   []*CommentGroup // Comments in body not attached to any node
 }
@@ -290,7 +290,7 @@ func (g *GoDecl) node()         {}
 func (g *GoDecl) Pos() Position { return g.Position }
 
 // RawGoExpr represents a raw Go expression that should be emitted as-is
-// (used for element references captured via @let)
+// (used for element references captured via := bindings)
 type RawGoExpr struct {
 	Code     string
 	Position Position

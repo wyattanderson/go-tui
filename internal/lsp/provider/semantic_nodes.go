@@ -179,7 +179,7 @@ func (s *semanticTokensProvider) collectTokensFromNode(node tuigen.Node, paramNa
 			s.collectTokensFromNode(child, paramNames, localVars, tokens)
 		}
 		if len(n.Else) > 0 {
-			// Emit @else keyword token by scanning source text
+			// Emit else keyword token by scanning source text
 			elseKeywordLine, elseKeywordCol := s.findElseKeyword(n)
 			if elseKeywordLine >= 0 {
 				*tokens = append(*tokens, SemanticToken{

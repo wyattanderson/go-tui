@@ -396,7 +396,7 @@ func (g *generator) generateLetBinding(binding *tuigen.LetBinding, indent string
 		// var syntax: Position is at "var", name is after "var "
 		tuiCol = binding.Position.Column - 1 + len("var ")
 	} else {
-		// Fallback (should not occur after @let removal)
+		// Fallback (should not occur since only := and var forms exist)
 		tuiCol = binding.Position.Column - 1
 	}
 	goVarStartCol := len(indent) + len("var ")

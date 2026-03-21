@@ -17,9 +17,9 @@ func (p *Parser) parseFor() *ForLoop {
 	loop := &ForLoop{Position: pos}
 
 	// Parse loop variables
-	// Could be: @for i, v := range items
-	//       or: @for _, v := range items
-	//       or: @for i := range items
+	// Could be: for i, v := range items
+	//       or: for _, v := range items
+	//       or: for i := range items
 
 	var firstVar string
 	if p.current.Type == TokenUnderscore {
@@ -94,7 +94,7 @@ func (p *Parser) parseFor() *ForLoop {
 	return loop
 }
 
-// parseIf parses @if condition { ... } @else { ... }
+// parseIf parses if condition { ... } else { ... }
 func (p *Parser) parseIf() *IfStmt {
 	pos := p.position()
 
@@ -131,7 +131,7 @@ func (p *Parser) parseIf() *IfStmt {
 		return nil
 	}
 
-	// Skip newlines before checking for @else
+	// Skip newlines before checking for else
 	p.skipNewlines()
 
 	// Check for else
@@ -209,7 +209,7 @@ func (p *Parser) parseShortBinding(name string, pos Position) *LetBinding {
 // parseVarBinding parses var name = <element> or var name = @Component().
 // Called when parser sees TokenVar followed by TokenIdent followed by TokenEquals
 // followed by TokenLAngle or TokenAtCall/TokenAtExpr.
-// Sets IsVarForm=true to distinguish from @let bindings in semantic highlighting.
+// Sets IsVarForm=true to distinguish from := bindings in semantic highlighting.
 func (p *Parser) parseVarBinding() *LetBinding {
 	pos := p.position()
 	p.advance() // consume "var"
