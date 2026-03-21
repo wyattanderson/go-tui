@@ -875,7 +875,7 @@
       "members": [
         {
           "type": "STRING",
-          "value": "@for"
+          "value": "for"
         },
         {
           "type": "FIELD",
@@ -954,7 +954,7 @@
       "members": [
         {
           "type": "STRING",
-          "value": "@if"
+          "value": "if"
         },
         {
           "type": "FIELD",
@@ -980,7 +980,7 @@
               "members": [
                 {
                   "type": "STRING",
-                  "value": "@else"
+                  "value": "else"
                 },
                 {
                   "type": "FIELD",
@@ -1009,40 +1009,79 @@
       ]
     },
     "let_binding": {
-      "type": "SEQ",
+      "type": "CHOICE",
       "members": [
         {
-          "type": "STRING",
-          "value": "@let"
-        },
-        {
-          "type": "FIELD",
-          "name": "name",
-          "content": {
-            "type": "SYMBOL",
-            "name": "identifier"
-          }
-        },
-        {
-          "type": "STRING",
-          "value": "="
-        },
-        {
-          "type": "FIELD",
-          "name": "value",
-          "content": {
-            "type": "CHOICE",
-            "members": [
-              {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "name",
+              "content": {
                 "type": "SYMBOL",
-                "name": "element"
-              },
-              {
-                "type": "SYMBOL",
-                "name": "go_expression"
+                "name": "identifier"
               }
-            ]
-          }
+            },
+            {
+              "type": "STRING",
+              "value": ":="
+            },
+            {
+              "type": "FIELD",
+              "name": "value",
+              "content": {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "element"
+                  },
+                  {
+                    "type": "SYMBOL",
+                    "name": "component_call"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "var"
+            },
+            {
+              "type": "FIELD",
+              "name": "name",
+              "content": {
+                "type": "SYMBOL",
+                "name": "identifier"
+              }
+            },
+            {
+              "type": "STRING",
+              "value": "="
+            },
+            {
+              "type": "FIELD",
+              "name": "value",
+              "content": {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "element"
+                  },
+                  {
+                    "type": "SYMBOL",
+                    "name": "component_call"
+                  }
+                ]
+              }
+            }
+          ]
         }
       ]
     },

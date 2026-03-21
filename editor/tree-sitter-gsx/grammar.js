@@ -14,7 +14,7 @@ module.exports = grammar({
   // this by preferring the longer match (state_declaration) when both apply.
   // This is intentional: inside a component body, `x := tui.NewState(0)` should
   // parse as a state_declaration, not as an expression.
-  conflicts: ($) => [[$.state_declaration, $._expression], [$.func_type], [$.let_binding, $.state_declaration]],
+  conflicts: ($) => [[$.state_declaration, $._expression], [$.func_type]],
 
   rules: {
     source_file: ($) =>
@@ -196,7 +196,7 @@ module.exports = grammar({
 
     // Control flow
     for_statement: ($) =>
-      seq(choice("@for", "for"), field("clause", $.for_clause), field("body", $.block)),
+      seq("for", field("clause", $.for_clause), field("body", $.block)),
 
     for_clause: ($) =>
       seq(
@@ -209,30 +209,23 @@ module.exports = grammar({
 
     if_statement: ($) =>
       seq(
-        choice("@if", "if"),
+        "if",
         field("condition", $._expression),
         field("consequence", $.block),
         optional(
-          seq(choice("@else", "else"), field("alternative", choice($.block, $.if_statement))),
+          seq("else", field("alternative", choice($.block, $.if_statement))),
         ),
       ),
 
     let_binding: ($) =>
       choice(
-        // Legacy @let syntax
-        seq(
-          "@let",
-          field("name", $.identifier),
-          "=",
-          field("value", choice($.element, $.go_expression)),
-        ),
-        // New := syntax
+        // := syntax
         seq(
           field("name", $.identifier),
           ":=",
           field("value", choice($.element, $.component_call)),
         ),
-        // New var syntax
+        // var syntax
         seq(
           "var",
           field("name", $.identifier),

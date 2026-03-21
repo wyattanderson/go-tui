@@ -923,11 +923,11 @@
         "required": true,
         "types": [
           {
-            "type": "element",
+            "type": "component_call",
             "named": true
           },
           {
-            "type": "go_expression",
+            "type": "element",
             "named": true
           }
         ]
@@ -1499,22 +1499,6 @@
     "named": false
   },
   {
-    "type": "@else",
-    "named": false
-  },
-  {
-    "type": "@for",
-    "named": false
-  },
-  {
-    "type": "@if",
-    "named": false
-  },
-  {
-    "type": "@let",
-    "named": false
-  },
-  {
     "type": "[",
     "named": false
   },
@@ -1531,8 +1515,16 @@
     "named": false
   },
   {
+    "type": "else",
+    "named": false
+  },
+  {
     "type": "false",
     "named": true
+  },
+  {
+    "type": "for",
+    "named": false
   },
   {
     "type": "func",
@@ -1541,6 +1533,10 @@
   {
     "type": "identifier",
     "named": true
+  },
+  {
+    "type": "if",
+    "named": false
   },
   {
     "type": "import",
