@@ -139,7 +139,7 @@ func inferTypeFromExpr(expr string) string {
 //
 // The elementIndex counter assigns names like "__tui_0", "__tui_1", etc. to unnamed
 // elements. This must match the generator's naming scheme in generator.go. Named
-// refs (#Name) use their ref name instead.
+// refs use their ref name instead.
 //
 // Note: Elements inside for loops are skipped for binding generation because their
 // generated variable names are scoped to the loop and cannot be referenced from outside.

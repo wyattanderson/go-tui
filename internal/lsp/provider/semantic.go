@@ -17,21 +17,21 @@ var stateNewStateRegex = regexp.MustCompile(`(\w+)\s*:=\s*tui\.NewState\((.+)\)`
 
 // Semantic token types (must match the order in SemanticTokensLegend.TokenTypes).
 const (
-	TokenTypeNamespace = 0  // package
-	TokenTypeType      = 1  // types
-	TokenTypeClass     = 2  // components
-	TokenTypeFunction  = 3  // functions
-	TokenTypeParameter = 4  // parameters
-	TokenTypeVariable  = 5  // variables
-	TokenTypeProperty  = 6  // attributes
-	TokenTypeKeyword   = 7  // keywords
-	TokenTypeString    = 8  // strings
-	TokenTypeNumber    = 9  // numbers
-	TokenTypeOperator  = 10 // operators
-	TokenTypeDecorator = 11 // @ prefix
-	TokenTypeRegexp    = 12 // format specifiers (often purple)
-	TokenTypeComment   = 13 // comments
-	TokenTypeLabel         = 14 // named refs (#Name)
+	TokenTypeNamespace     = 0  // package
+	TokenTypeType          = 1  // types
+	TokenTypeClass         = 2  // components
+	TokenTypeFunction      = 3  // functions
+	TokenTypeParameter     = 4  // parameters
+	TokenTypeVariable      = 5  // variables
+	TokenTypeProperty      = 6  // attributes
+	TokenTypeKeyword       = 7  // keywords
+	TokenTypeString        = 8  // strings
+	TokenTypeNumber        = 9  // numbers
+	TokenTypeOperator      = 10 // operators
+	TokenTypeDecorator     = 11 // @ prefix
+	TokenTypeRegexp        = 12 // format specifiers (often purple)
+	TokenTypeComment       = 13 // comments
+	TokenTypeLabel         = 14 // named refs
 	TokenTypeTypeParameter = 15 // generic type arguments
 )
 
@@ -86,7 +86,7 @@ var GoKeywords = map[string]bool{
 	"defer":       true,
 	"go":          true,
 	"select":      true,
-	"chan":         true,
+	"chan":        true,
 	"map":         true,
 	"struct":      true,
 	"interface":   true,
@@ -122,8 +122,8 @@ type FunctionNameChecker interface {
 type semanticTokensProvider struct {
 	fnChecker      FunctionNameChecker
 	docs           DocumentAccessor // optional, for accurate position lookups
-	currentURI     string          // set during SemanticTokensFull call
-	currentContent string          // set during SemanticTokensFull call
+	currentURI     string           // set during SemanticTokensFull call
+	currentContent string           // set during SemanticTokensFull call
 }
 
 // NewSemanticTokensProvider creates a new semantic tokens provider.

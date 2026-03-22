@@ -327,8 +327,8 @@ func ConfirmApp() *confirmApp {
 
 func (c *confirmApp) KeyMap() tui.KeyMap {
     return tui.KeyMap{
-        tui.OnKeyStop(tui.KeyEscape, func(ke tui.KeyEvent) { ke.App().Stop() }),
-        tui.OnRuneStop('o', func(ke tui.KeyEvent) { c.showModal.Set(true) }),
+        tui.OnStop(tui.KeyEscape, func(ke tui.KeyEvent) { ke.App().Stop() }),
+        tui.OnStop(tui.Rune('o'), func(ke tui.KeyEvent) { c.showModal.Set(true) }),
     }
 }
 

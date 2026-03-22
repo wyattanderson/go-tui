@@ -163,7 +163,7 @@ func (g *Generator) generateFunctionComponent(comp *Component) {
 				rootVar = varName
 			}
 		case *LetBinding:
-			// @let bindings create elements that are typically used as children
+			// Let bindings create elements that are typically used as children
 			// They are NOT the root element unless explicitly used
 			g.generateLetBinding(n, "")
 		case *ForLoop:

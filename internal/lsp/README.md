@@ -164,14 +164,14 @@ ResolveCursorContext(doc, position)
            │
            ├── collectScopeFromBody():
            │   Walk body recursively collecting:
-           │   ├── NamedRefs (with InLoop/InConditional flags)
+           │   ├── Refs (with InLoop/InConditional flags)
            │   ├── StateVars (via DetectStateVars on first GoCode w/ tui.NewState)
            │   ├── LetBindings
            │   └── ForLoop/IfStmt nesting
            │
            ├── resolveInNodes() → resolveInNode() → resolveInNodeInner()
            │   Dispatch on AST node type:
-           │   ├── Element     → tag, #ref, attributes, event handlers
+           │   ├── Element     → tag, ref, attributes, event handlers
            │   ├── ForLoop     → loop header, body children
            │   ├── IfStmt      → condition, then/else branches
            │   ├── LetBinding  → variable name, element children
@@ -211,7 +211,7 @@ Every cursor position is classified into one of these kinds, which drives dispat
 | `Component` | `templ Name(...)` declaration line, on the name |
 | `Element` | HTML-like element tag (`<div>`, `<span>`, etc.) |
 | `Attribute` | Element attribute name (`class`, `id`, etc.) |
-| `NamedRef` | `#Name` reference on an element |
+| `Ref` | `ref` attribute on an element |
 | `GoExpr` | Go expression inside `{...}` |
 | `ForLoop` | `for` loop header |
 | `IfStmt` | `if` conditional header |
@@ -245,7 +245,7 @@ IfStmt        → Show keyword documentation
 LetBinding    → Show keyword documentation
 Function      → Show function signature from index
 ComponentCall → Show component signature from index
-NamedRef      → Show ref type (simple, slice, map) + access pattern
+Ref           → Show ref type (simple, slice, map) + access pattern
 StateDecl     → Show state variable type, initial value, available methods
 StateAccess   → Show specific state method documentation
 TailwindClass → Show class documentation from schema
@@ -272,7 +272,7 @@ ComponentCall → Component declaration location (from index)
 Component     → Self (declaration line)
 Parameter     → Parameter position on declaration line
 Function      → Function declaration location
-NamedRef      → Element with the #Name ref
+Ref           → Element with the ref attribute
 LetBinding    → Let declaration line
 StateDecl     → State variable declaration line
 GoExpr        → gopls definition via virtual file + SourceMap
@@ -284,7 +284,7 @@ NodeKind → Search scope
 ─────────────────────────────────────────────────────
 Component/ComponentCall → All @Name calls across open docs + workspace ASTs
 Parameter               → Parameter declaration + usages in component body
-NamedRef                → #Name declaration + view.Name usages
+Ref                     → ref declaration + usages
 StateDecl/StateAccess   → Declaration + .Get()/.Set()/etc. usages
 LetBinding              → Declaration + usages in component body
 Function                → Function declaration + calls across workspace
@@ -313,7 +313,7 @@ Position translation:
 1. Package declaration and imports are copied as-is
 2. Each `templ` component becomes a Go function with the same signature
 3. State declarations (`tui.NewState(...)`) are emitted as Go variable declarations
-4. Named refs (`#Name`) are emitted as typed variable declarations
+4. Ref variables are emitted as typed variable declarations
 5. Go expressions (`{expr}`) become `_ = expr` assignments
 6. For loops, if statements, and let bindings map to their Go equivalents
 7. Component calls become `_ = Name(args)` assignments

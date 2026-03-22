@@ -188,7 +188,7 @@ Let binding
 ================================================================================
 
 templ WithLet() {
-	@let header = <span>Title</span>
+	header := <span>Title</span>
 	<div>{header}</div>
 }
 

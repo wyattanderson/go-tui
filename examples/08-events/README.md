@@ -1,6 +1,6 @@
 # Events
 
-Shows keyboard and mouse event handling through the `KeyListener` interface, `KeyMap` bindings, and helpers like `OnKey`, `OnRune`, and `OnRunesStop`.
+Shows keyboard and mouse event handling through the `KeyListener` interface, `KeyMap` bindings, and helpers like `On`, `OnStop`, and `Rune`.
 
 ## Screenshot
 

@@ -200,17 +200,6 @@
           }
         },
         {
-          "comment": "Legacy @let binding: @let name = <element>",
-          "name": "meta.control.let.gsx",
-          "begin": "(@let)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*(=)",
-          "end": "(?=<|\\{|$)",
-          "beginCaptures": {
-            "1": { "name": "keyword.control.let.gsx" },
-            "2": { "name": "variable.other.gsx" },
-            "3": { "name": "keyword.operator.assignment.gsx" }
-          }
-        },
-        {
           "comment": "Short binding: name := <element> or name := @Component()",
           "name": "meta.control.binding.gsx",
           "match": "([a-zA-Z_][a-zA-Z0-9_]*)\\s*(:=)\\s*(?=<|@[A-Z])",

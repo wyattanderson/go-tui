@@ -88,7 +88,7 @@ Use this section to quickly find the right files for a given change.
 - `style.go` — Style type with chainable methods (Bold, Dim, Italic, Foreground, etc.)
 - `ref.go` — Ref, RefList, RefMap[K] for element references
 - `click.go` — Click(), HandleClicks() for ref-based mouse hit testing
-- `keymap.go` — KeyMap, KeyBinding, KeyPattern, OnKey(), OnRune(), etc.
+- `keymap.go` — KeyMap, KeyBinding, KeyPattern, On(), OnStop(), Rune(), etc.
 - `component.go` — Component, KeyListener, MouseListener, Initializer, WatcherProvider interfaces
 - `events.go` — Events[T] generic event bus for cross-component communication
 - `mount.go` — Component caching and lifecycle (Mount, PropsUpdater)
@@ -128,7 +128,7 @@ Use this section to quickly find the right files for a given change.
 
 - `event.go` — Event interface, KeyEvent, MouseEvent (MouseButton, MouseAction), ResizeEvent types
 - `key.go` — Key type: special keys (Escape, Enter, Tab, arrows, Ctrl+A-Z, function keys)
-- `keymap.go` — KeyMap, KeyBinding, KeyPattern; helpers: OnKey(), OnKeyStop(), OnRune(), OnRuneStop(), OnRunes(), OnRunesStop()
+- `keymap.go` — KeyMap, KeyBinding, KeyPattern; helpers: On(), OnStop(), OnPreemptStop(), OnFocused(), Rune(), AnyRune, AnyKey
 - `dispatch.go` — Key dispatch table: priority-ordered key binding dispatch by tree position
 - `parse.go` — parseInput(): CSI/SS3 sequence parsing, mouse SGR, UTF-8, modifiers
 - `reader.go` — EventReader/InterruptibleReader interfaces, stdinReader, PollEvent()
@@ -733,11 +733,11 @@ Implement `KeyListener` to handle keyboard input:
 ```go
 func (c *myComponent) KeyMap() tui.KeyMap {
     return tui.KeyMap{
-        tui.OnKey(tui.KeyEnter, c.onEnter),         // Specific key, broadcast
-        tui.OnKeyStop(tui.KeyEscape, c.onEscape),   // Specific key, stop propagation
-        tui.OnRune('q', func(ke tui.KeyEvent) { ... }), // Specific character
-        tui.OnRunesStop(c.onTyping),                  // All printable chars, exclusive
-        tui.OnPreemptStop(tui.AnyKey, c.onBlock),    // Preemptive, stops propagation
+        tui.On(tui.KeyEnter, c.onEnter),              // Specific key, broadcast
+        tui.OnStop(tui.KeyEscape, c.onEscape),        // Specific key, stop propagation
+        tui.On(tui.Rune('q'), func(ke tui.KeyEvent) { ... }), // Specific character
+        tui.OnStop(tui.AnyRune, c.onTyping),          // All printable chars, exclusive
+        tui.OnPreemptStop(tui.AnyKey, c.onBlock),     // Preemptive, stops propagation
     }
 }
 ```

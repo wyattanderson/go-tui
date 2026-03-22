@@ -68,15 +68,15 @@ type InitializeResult struct {
 
 // ServerCapabilities represents server capabilities.
 type ServerCapabilities struct {
-	TextDocumentSync           *TextDocumentSyncOptions  `json:"textDocumentSync,omitempty"`
-	CompletionProvider         *CompletionOptions        `json:"completionProvider,omitempty"`
-	HoverProvider              bool                      `json:"hoverProvider,omitempty"`
-	DefinitionProvider         bool                      `json:"definitionProvider,omitempty"`
-	ReferencesProvider         bool                      `json:"referencesProvider,omitempty"`
-	DocumentSymbolProvider     bool                      `json:"documentSymbolProvider,omitempty"`
-	WorkspaceSymbolProvider    bool                      `json:"workspaceSymbolProvider,omitempty"`
-	DocumentFormattingProvider bool                      `json:"documentFormattingProvider,omitempty"`
-	SemanticTokensProvider     *SemanticTokensOptions    `json:"semanticTokensProvider,omitempty"`
+	TextDocumentSync           *TextDocumentSyncOptions `json:"textDocumentSync,omitempty"`
+	CompletionProvider         *CompletionOptions       `json:"completionProvider,omitempty"`
+	HoverProvider              bool                     `json:"hoverProvider,omitempty"`
+	DefinitionProvider         bool                     `json:"definitionProvider,omitempty"`
+	ReferencesProvider         bool                     `json:"referencesProvider,omitempty"`
+	DocumentSymbolProvider     bool                     `json:"documentSymbolProvider,omitempty"`
+	WorkspaceSymbolProvider    bool                     `json:"workspaceSymbolProvider,omitempty"`
+	DocumentFormattingProvider bool                     `json:"documentFormattingProvider,omitempty"`
+	SemanticTokensProvider     *SemanticTokensOptions   `json:"semanticTokensProvider,omitempty"`
 }
 
 // SemanticTokensOptions represents semantic tokens capabilities.
@@ -152,21 +152,21 @@ func (s *Server) handleInitialize(params json.RawMessage) (any, *Error) {
 			SemanticTokensProvider: &SemanticTokensOptions{
 				Legend: SemanticTokensLegend{
 					TokenTypes: []string{
-						"namespace",   // 0: package
-						"type",        // 1: types
-						"class",       // 2: components
-						"function",    // 3: functions
-						"parameter",   // 4: parameters
-						"variable",    // 5: variables
-						"property",    // 6: attributes
-						"keyword",     // 7: keywords (templ, for, etc.)
-						"string",      // 8: strings
-						"number",      // 9: numbers
-						"operator",    // 10: operators
-						"decorator",   // 11: @ prefix
-						"regexp",      // 12: format specifiers (often purple)
-						"comment",     // 13: comments
-					"label",         // 14: named refs (#Name)
+						"namespace",     // 0: package
+						"type",          // 1: types
+						"class",         // 2: components
+						"function",      // 3: functions
+						"parameter",     // 4: parameters
+						"variable",      // 5: variables
+						"property",      // 6: attributes
+						"keyword",       // 7: keywords (templ, for, etc.)
+						"string",        // 8: strings
+						"number",        // 9: numbers
+						"operator",      // 10: operators
+						"decorator",     // 11: @ prefix
+						"regexp",        // 12: format specifiers (often purple)
+						"comment",       // 13: comments
+						"label",         // 14: named refs
 						"typeParameter", // 15: generic type arguments
 					},
 					TokenModifiers: []string{
@@ -455,7 +455,6 @@ func (s *Server) indexWorkspace() {
 
 		return nil
 	})
-
 	if err != nil {
 		log.Server("Error walking workspace: %v", err)
 	}
