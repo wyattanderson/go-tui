@@ -1,6 +1,7 @@
 package tuigen
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -153,60 +154,69 @@ func TestLexer_Keywords(t *testing.T) {
 	}
 }
 
-func TestLexer_DSLKeywords(t *testing.T) {
+func TestLexer_AtControlFlowRejected(t *testing.T) {
 	type tc struct {
-		input        string
-		expectedType TokenType
-		literal      string
+		input    string
+		wantType TokenType // @for/@if/@else emit bare tokens; @let emits TokenError
+		wantErr  string
 	}
 
 	tests := map[string]tc{
-		"@let":  {input: "@let", expectedType: TokenAtLet, literal: "@let"},
-		"@for":  {input: "@for", expectedType: TokenFor, literal: "for"},
-		"@if":   {input: "@if", expectedType: TokenIf, literal: "if"},
-		"@else": {input: "@else", expectedType: TokenElse, literal: "else"},
+		"@for emits error and TokenFor": {
+			input:    "@for",
+			wantType: TokenFor,
+			wantErr:  "@for is no longer supported",
+		},
+		"@if emits error and TokenIf": {
+			input:    "@if",
+			wantType: TokenIf,
+			wantErr:  "@if is no longer supported",
+		},
+		"@else emits error and TokenElse": {
+			input:    "@else",
+			wantType: TokenElse,
+			wantErr:  "@else is no longer supported",
+		},
+		"@let emits error and TokenError": {
+			input:    "@let",
+			wantType: TokenError,
+			wantErr:  "@let is no longer supported",
+		},
 	}
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			l := NewLexer("test.gsx", tt.input)
 			tok := l.Next()
-			if tok.Type != tt.expectedType {
-				t.Errorf("Type = %v, want %v", tok.Type, tt.expectedType)
+			if tok.Type != tt.wantType {
+				t.Errorf("Type = %v, want %v", tok.Type, tt.wantType)
 			}
-			if tok.Literal != tt.literal {
-				t.Errorf("Literal = %q, want %q", tok.Literal, tt.literal)
+			errList := l.Errors()
+			if !errList.HasErrors() {
+				t.Fatal("expected error, got none")
+			}
+			errs := errList.Errors()
+			if !strings.Contains(errs[0].Message, tt.wantErr) {
+				t.Errorf("error = %q, want containing %q", errs[0].Message, tt.wantErr)
 			}
 		})
 	}
 }
 
-func TestLexer_AtKeywordsEmitBareTokens(t *testing.T) {
+func TestLexer_AtComponentCallStillWorks(t *testing.T) {
 	type tc struct {
 		input    string
 		wantType TokenType
 	}
 
 	tests := map[string]tc{
-		"@if emits TokenIf": {
-			input:    "@if",
-			wantType: TokenIf,
-		},
-		"@for emits TokenFor": {
-			input:    "@for",
-			wantType: TokenFor,
-		},
-		"@else emits TokenElse": {
-			input:    "@else",
-			wantType: TokenElse,
-		},
-		"@let still emits TokenAtLet": {
-			input:    "@let",
-			wantType: TokenAtLet,
-		},
-		"@Component still emits TokenAtCall": {
+		"@Component emits TokenAtCall": {
 			input:    "@Header",
 			wantType: TokenAtCall,
+		},
+		"@expr emits TokenAtExpr": {
+			input:    "@c.textarea",
+			wantType: TokenAtExpr,
 		},
 	}
 

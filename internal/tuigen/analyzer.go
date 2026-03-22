@@ -63,7 +63,7 @@ type Analyzer struct {
 	usesLayout  bool
 	usesTUI     bool
 
-	// Track @let bindings for unused variable detection
+	// Track := bindings for unused variable detection
 	letBindings map[string]bool // name -> used
 
 	// Track component definitions for children validation
@@ -257,12 +257,12 @@ func (a *Analyzer) Analyze(file *File) error {
 		}
 	}
 
-	// Second pass: collect @let binding names from all components
+	// Second pass: collect := binding names from all components
 	for _, comp := range file.Components {
 		a.collectLetBindings(comp.Body)
 	}
 
-	// Third pass: transform GoExpr references to @let bindings into RawGoExpr
+	// Third pass: transform GoExpr references to := bindings into RawGoExpr
 	for _, comp := range file.Components {
 		comp.Body = a.transformElementRefs(comp.Body)
 	}
@@ -277,7 +277,7 @@ func (a *Analyzer) Analyze(file *File) error {
 		a.analyzeComponent(comp)
 	}
 
-	// Check for unused @let bindings
+	// Check for unused := bindings
 	for name, used := range a.letBindings {
 		if !used {
 			// This is a warning, not an error - but we'll still report it
@@ -521,7 +521,7 @@ func (a *Analyzer) analyzeGoExpr(expr *GoExpr) {
 		a.usesTUI = true
 	}
 
-	// Check if expression references a @let binding
+	// Check if expression references a := binding
 	for name := range a.letBindings {
 		if strings.Contains(expr.Code, name) {
 			a.letBindings[name] = true
@@ -539,7 +539,7 @@ func (a *Analyzer) analyzeGoCode(code *GoCode) {
 		a.usesTUI = true
 	}
 
-	// Check if code references a @let binding
+	// Check if code references a := binding
 	for name := range a.letBindings {
 		if strings.Contains(code.Code, name) {
 			a.letBindings[name] = true

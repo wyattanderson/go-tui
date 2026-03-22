@@ -101,6 +101,10 @@ func (p *Parser) parseBodyNode() Node {
 		if stmt := p.parseGoStatement(); stmt != nil {
 			return stmt
 		}
+	case TokenError:
+		// Lexer already reported the diagnostic (e.g. "@let is no longer supported").
+		// Just advance past the error token without emitting a second error.
+		p.advance()
 	default:
 		p.errors.AddErrorf(p.position(), "unexpected token %s in body", p.current.Type)
 		p.advance()
@@ -114,12 +118,6 @@ func (p *Parser) parseBodyNode() Node {
 // When nil is returned, the token cursor is guaranteed to be unchanged (via save/restore).
 func (p *Parser) parseControlFlowOrBinding() Node {
 	switch p.current.Type {
-	case TokenAtLet:
-		saved := p.saveState()
-		if let := p.parseLet(); let != nil {
-			return let
-		}
-		p.restoreState(saved)
 	case TokenFor:
 		if !p.isRangeForLoop() {
 			return nil // C-style for, let caller handle as GoCode

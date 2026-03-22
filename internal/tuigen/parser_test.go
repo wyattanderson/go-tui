@@ -183,10 +183,10 @@ import (
 templ Dashboard(items []string, selectedIndex int) {
 	<div direction={tui.Column} padding=1>
 		<span>Dashboard</span>
-		@for i, item := range items {
-			@if i == selectedIndex {
+		for i, item := range items {
+			if i == selectedIndex {
 				<span textStyle={highlightStyle}>{item}</span>
-			} @else {
+			} else {
 				<span>{item}</span>
 			}
 		}
@@ -445,10 +445,10 @@ func TestParser_RawSourcePreservation(t *testing.T) {
 	// Test that raw source is preserved correctly in conditions/iterables
 	input := `package x
 templ Test() {
-	@if user.Name != "" && user.Age >= 18 {
+	if user.Name != "" && user.Age >= 18 {
 		<span>Adult</span>
 	}
-	@for i, v := range items[0:10] {
+	for i, v := range items[0:10] {
 		<span>{v}</span>
 	}
 }`
@@ -463,14 +463,14 @@ templ Test() {
 
 	body := file.Components[0].Body
 
-	// Check @if condition preserves original formatting
+	// Check if condition preserves original formatting
 	ifStmt := body[0].(*IfStmt)
 	expectedCond := `user.Name != "" && user.Age >= 18`
 	if ifStmt.Condition != expectedCond {
 		t.Errorf("Condition = %q, want %q", ifStmt.Condition, expectedCond)
 	}
 
-	// Check @for iterable preserves original formatting
+	// Check for iterable preserves original formatting
 	forLoop := body[1].(*ForLoop)
 	expectedIter := "items[0:10]"
 	if forLoop.Iterable != expectedIter {

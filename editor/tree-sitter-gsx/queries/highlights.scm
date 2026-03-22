@@ -11,10 +11,9 @@
 
 ; DSL keywords
 "templ" @keyword.function
-"@for" @keyword.repeat
-"@if" @keyword.conditional
-"@else" @keyword.conditional
-"@let" @keyword
+"for" @keyword.repeat
+"if" @keyword.conditional
+"else" @keyword.conditional
 
 ; Function keyword
 "func" @keyword.function
