@@ -189,9 +189,11 @@ tui version                  Print version
 
 **VS Code**: Install the extension from [`editor/vscode/`](editor/vscode/). Syntax highlighting, completion, hover, go-to-definition, diagnostics, and formatting.
 
-**Neovim / Helix**: Tree-sitter grammar at [`editor/tree-sitter-gsx/`](editor/tree-sitter-gsx/).
+**Neovim**: Install the plugin from [`editor/nvim/`](editor/nvim/). Syntax highlighting via tree-sitter, LSP integration, and filetype detection. See the [Neovim README](editor/nvim/README.md) for setup instructions.
 
-The `tui lsp` language server works with any editor that speaks JSON-RPC over stdio. It proxies Go-specific features through gopls with `.gsx` ↔ `.go` source mapping.
+**Helix**: Tree-sitter grammar at [`editor/tree-sitter-gsx/`](editor/tree-sitter-gsx/).
+
+The `tui lsp` language server works with any editor that speaks JSON-RPC over stdio. It proxies Go-specific features through gopls with `.gsx` to `.go` source mapping.
 
 ## Documentation
 
