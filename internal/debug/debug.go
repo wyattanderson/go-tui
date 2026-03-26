@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -14,7 +15,32 @@ var (
 
 	overflowOnce      sync.Once
 	overflowHighlight bool
+
+	// Resolved once at package init from the DEBUG env var.
+	allTopics bool            // DEBUG=1 or DEBUG=*
+	anyTopics bool            // true when allTopics or len(topics) > 0
+	topics    map[string]bool // DEBUG=keys,dispatch
 )
+
+func init() {
+	val := strings.TrimSpace(os.Getenv("DEBUG"))
+	if val == "" {
+		return
+	}
+	if val == "1" || val == "*" {
+		allTopics = true
+		anyTopics = true
+		return
+	}
+	topics = make(map[string]bool)
+	for _, t := range strings.Split(val, ",") {
+		t = strings.TrimSpace(t)
+		if t != "" {
+			topics[t] = true
+		}
+	}
+	anyTopics = len(topics) > 0
+}
 
 // OverflowHighlight returns true if the TUI_DEBUG_OVERFLOW environment variable
 // is set, indicating that containers with overflowing children should be
@@ -71,14 +97,20 @@ func Close() error {
 }
 
 // Log writes a message to the debug log with a timestamp.
+// Enabled only when DEBUG=1 or DEBUG=*; specific topic values do not enable Log.
 func Log(format string, args ...any) {
+	if !allTopics {
+		return
+	}
+
 	mu.Lock()
 	defer mu.Unlock()
 
-	if logFile == nil && os.Getenv("DEBUG") != "" {
-		initLocked("")
-	} else if logFile == nil {
-		return
+	if logFile == nil {
+		if err := initLocked(""); err != nil {
+			fmt.Fprintf(os.Stderr, "debug: failed to open log: %v\n", err)
+			return
+		}
 	}
 
 	timestamp := time.Now().Format("15:04:05.000")
@@ -90,4 +122,31 @@ func Log(format string, args ...any) {
 // Logf is an alias for Log.
 func Logf(format string, args ...any) {
 	Log(format, args...)
+}
+
+// Topic writes a message to the debug log only if the given topic is enabled.
+// Topics are enabled via the DEBUG env var: DEBUG=keys,dispatch enables those
+// two topics. DEBUG=1 or DEBUG=* enables all topics.
+func Topic(topic string, format string, args ...any) {
+	if !anyTopics {
+		return
+	}
+	if !allTopics && !topics[topic] {
+		return
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	if logFile == nil {
+		if err := initLocked(""); err != nil {
+			fmt.Fprintf(os.Stderr, "debug: failed to open log: %v\n", err)
+			return
+		}
+	}
+
+	timestamp := time.Now().Format("15:04:05.000")
+	msg := fmt.Sprintf(format, args...)
+	fmt.Fprintf(logFile, "[%s] [%s] %s\n", timestamp, topic, msg)
+	logFile.Sync()
 }
