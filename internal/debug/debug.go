@@ -107,7 +107,10 @@ func Log(format string, args ...any) {
 	defer mu.Unlock()
 
 	if logFile == nil {
-		initLocked("")
+		if err := initLocked(""); err != nil {
+			fmt.Fprintf(os.Stderr, "debug: failed to open log: %v\n", err)
+			return
+		}
 	}
 
 	timestamp := time.Now().Format("15:04:05.000")
@@ -136,7 +139,10 @@ func Topic(topic string, format string, args ...any) {
 	defer mu.Unlock()
 
 	if logFile == nil {
-		initLocked("")
+		if err := initLocked(""); err != nil {
+			fmt.Fprintf(os.Stderr, "debug: failed to open log: %v\n", err)
+			return
+		}
 	}
 
 	timestamp := time.Now().Format("15:04:05.000")
