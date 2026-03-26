@@ -152,7 +152,7 @@ func (dt *dispatchTable) dispatch(ke KeyEvent) bool {
 			continue // already handled
 		}
 		if dt.entries[i].matches(ke) {
-			debug.Topic("dispatch", "matched entry[%d] pattern={Key=%d Rune=%q Mod=%v ExcludeMods=%v} stop=%v",
+			debug.Topic("dispatch", "matched entry[%d] pattern={Key=%s Rune=%q Mod=%v ExcludeMods=%v} stop=%v",
 				i, dt.entries[i].pattern.Key, dt.entries[i].pattern.Rune, dt.entries[i].pattern.Mod, dt.entries[i].pattern.ExcludeMods, dt.entries[i].stop)
 			dt.entries[i].handler(ke)
 			if dt.entries[i].stop {

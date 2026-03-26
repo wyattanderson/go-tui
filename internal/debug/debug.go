@@ -16,10 +16,31 @@ var (
 	overflowOnce      sync.Once
 	overflowHighlight bool
 
-	topicsOnce sync.Once
-	allTopics  bool            // DEBUG=1 or DEBUG=*
-	topics     map[string]bool // DEBUG=keys,dispatch
+	// Resolved once at package init from the DEBUG env var.
+	allTopics bool            // DEBUG=1 or DEBUG=*
+	anyTopics bool            // true when allTopics or len(topics) > 0
+	topics    map[string]bool // DEBUG=keys,dispatch
 )
+
+func init() {
+	val := strings.TrimSpace(os.Getenv("DEBUG"))
+	if val == "" {
+		return
+	}
+	if val == "1" || val == "*" {
+		allTopics = true
+		anyTopics = true
+		return
+	}
+	topics = make(map[string]bool)
+	for _, t := range strings.Split(val, ",") {
+		t = strings.TrimSpace(t)
+		if t != "" {
+			topics[t] = true
+		}
+	}
+	anyTopics = len(topics) > 0
+}
 
 // OverflowHighlight returns true if the TUI_DEBUG_OVERFLOW environment variable
 // is set, indicating that containers with overflowing children should be
@@ -29,38 +50,6 @@ func OverflowHighlight() bool {
 		overflowHighlight = os.Getenv("TUI_DEBUG_OVERFLOW") != ""
 	})
 	return overflowHighlight
-}
-
-// parseTopics reads the DEBUG env var and populates the topic filter.
-// DEBUG=1 or DEBUG=* enables all topics. DEBUG=keys,dispatch enables
-// only those topics. Unset or empty disables all logging.
-func parseTopics() {
-	topicsOnce.Do(func() {
-		val := strings.TrimSpace(os.Getenv("DEBUG"))
-		if val == "" {
-			return
-		}
-		if val == "1" || val == "*" {
-			allTopics = true
-			return
-		}
-		topics = make(map[string]bool)
-		for _, t := range strings.Split(val, ",") {
-			t = strings.TrimSpace(t)
-			if t != "" {
-				topics[t] = true
-			}
-		}
-	})
-}
-
-// topicEnabled returns true if the given topic should be logged.
-func topicEnabled(topic string) bool {
-	parseTopics()
-	if allTopics {
-		return true
-	}
-	return topics[topic]
 }
 
 // Init initializes debug logging to the specified file path.
@@ -110,7 +99,6 @@ func Close() error {
 // Log writes a message to the debug log with a timestamp.
 // Enabled only when DEBUG=1 or DEBUG=*; specific topic values do not enable Log.
 func Log(format string, args ...any) {
-	parseTopics()
 	if !allTopics {
 		return
 	}
@@ -137,7 +125,10 @@ func Logf(format string, args ...any) {
 // Topics are enabled via the DEBUG env var: DEBUG=keys,dispatch enables those
 // two topics. DEBUG=1 or DEBUG=* enables all topics.
 func Topic(topic string, format string, args ...any) {
-	if !topicEnabled(topic) {
+	if !anyTopics {
+		return
+	}
+	if !allTopics && !topics[topic] {
 		return
 	}
 
