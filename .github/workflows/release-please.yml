@@ -21,6 +21,14 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
+  trigger-docs-deploy:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Vercel deploy hook
+        run: curl -s -X POST "${{ secrets.VERCEL_DOCS_DEPLOY_HOOK }}"
+
   goreleaser:
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created }}
