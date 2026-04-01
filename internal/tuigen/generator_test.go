@@ -835,3 +835,148 @@ templ (c *myComp) Render() {
 		})
 	}
 }
+
+func TestGenerator_InterfaceChecks(t *testing.T) {
+	type tc struct {
+		input           string
+		wantContains    []string
+		wantNotContains []string
+	}
+
+	tests := map[string]tc{
+		"KeyMap method emits KeyListener check": {
+			input: `package x
+
+type counter struct{}
+
+templ (c *counter) Render() {
+	<div>hello</div>
+}
+
+func (c *counter) KeyMap() tui.KeyMap {
+	return nil
+}`,
+			wantContains: []string{
+				"_ tui.KeyListener = (*counter)(nil)",
+			},
+		},
+		"HandleMouse method emits MouseListener check": {
+			input: `package x
+
+type clicker struct{}
+
+templ (c *clicker) Render() {
+	<div>hello</div>
+}
+
+func (c *clicker) HandleMouse(me tui.MouseEvent) bool {
+	return false
+}`,
+			wantContains: []string{
+				"_ tui.MouseListener = (*clicker)(nil)",
+			},
+		},
+		"Init method emits Initializer check": {
+			input: `package x
+
+type loader struct{}
+
+templ (l *loader) Render() {
+	<div>hello</div>
+}
+
+func (l *loader) Init() func() {
+	return nil
+}`,
+			wantContains: []string{
+				"_ tui.Initializer = (*loader)(nil)",
+			},
+		},
+		"Watchers method emits WatcherProvider check": {
+			input: `package x
+
+type ticker struct{}
+
+templ (t *ticker) Render() {
+	<div>hello</div>
+}
+
+func (t *ticker) Watchers() []tui.Watcher {
+	return nil
+}`,
+			wantContains: []string{
+				"_ tui.WatcherProvider = (*ticker)(nil)",
+			},
+		},
+		"multiple interfaces on same type": {
+			input: `package x
+
+type app struct{}
+
+templ (a *app) Render() {
+	<div>hello</div>
+}
+
+func (a *app) KeyMap() tui.KeyMap {
+	return nil
+}
+
+func (a *app) Init() func() {
+	return nil
+}`,
+			wantContains: []string{
+				"_ tui.KeyListener = (*app)(nil)",
+				"_ tui.Initializer = (*app)(nil)",
+			},
+		},
+		"no checks for function components": {
+			input: `package x
+
+templ Header() {
+	<div>hello</div>
+}
+
+func helper() {}`,
+			wantNotContains: []string{
+				"Compile-time interface",
+			},
+		},
+		"no checks for non-component receiver types": {
+			input: `package x
+
+type helper struct{}
+
+templ Header() {
+	<div>hello</div>
+}
+
+func (h *helper) KeyMap() tui.KeyMap {
+	return nil
+}`,
+			wantNotContains: []string{
+				"_ tui.KeyListener",
+			},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			output, err := parseAndGenerateSkipImports("test.gsx", tt.input)
+			if err != nil {
+				t.Fatalf("generation failed: %v", err)
+			}
+
+			code := string(output)
+			for _, want := range tt.wantContains {
+				if !strings.Contains(code, want) {
+					t.Errorf("output missing expected string: %q\nGot:\n%s", want, code)
+				}
+			}
+			for _, notWant := range tt.wantNotContains {
+				if strings.Contains(code, notWant) {
+					t.Errorf("output contains unexpected string: %q\nGot:\n%s", notWant, code)
+				}
+			}
+		})
+	}
+}
