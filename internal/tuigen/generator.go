@@ -127,6 +127,10 @@ func (g *Generator) Generate(file *File, sourceFile string) ([]byte, error) {
 		g.generateComponent(comp)
 	}
 
+	// Emit compile-time interface checks for method components that define
+	// optional interface methods (KeyMap, HandleMouse, Init, Watchers).
+	g.generateInterfaceChecks(file)
+
 	// For tests: just format without import processing (much faster)
 	if g.SkipImports {
 		return format.Source(g.buf.Bytes())

@@ -2,6 +2,7 @@ package tuigen
 
 import (
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -693,6 +694,94 @@ func (g *Generator) generateUnbindApp(comp *Component, decls []*GoDecl) {
 	g.writeln("")
 	g.writef("var _ tui.AppUnbinder = (*%s)(nil)\n", typeName)
 	g.writeln("")
+}
+
+// interfaceCheck maps a method name pattern to the tui interface it satisfies.
+type interfaceCheck struct {
+	// methodPattern matches the method signature in Go source code.
+	methodPattern string
+	// interfaceName is the tui interface (e.g., "tui.KeyListener").
+	interfaceName string
+}
+
+// optionalInterfaces lists the user-facing component interfaces that are
+// discovered via type assertion at runtime. A wrong method signature silently
+// fails the assertion, so we emit compile-time checks when we detect these
+// methods on component receiver types.
+var optionalInterfaces = []interfaceCheck{
+	{`\bKeyMap\s*\(`, "tui.KeyListener"},
+	{`\bHandleMouse\s*\(`, "tui.MouseListener"},
+	{`\bInit\s*\(`, "tui.Initializer"},
+	{`\bWatchers\s*\(`, "tui.WatcherProvider"},
+}
+
+// generateInterfaceChecks emits compile-time interface satisfaction checks
+// for method component receiver types that define optional interface methods.
+// This catches signature mismatches (e.g., returning []tui.KeyBinding instead
+// of tui.KeyMap) at compile time rather than failing silently at runtime.
+func (g *Generator) generateInterfaceChecks(file *File) {
+	// Collect receiver types that are method templ components.
+	componentTypes := make(map[string]bool)
+	for _, comp := range file.Components {
+		if comp.ReceiverType != "" {
+			typeName := strings.TrimPrefix(comp.ReceiverType, "*")
+			componentTypes[typeName] = true
+		}
+	}
+	if len(componentTypes) == 0 {
+		return
+	}
+
+	// For each optional interface, check if any GoFunc defines a matching
+	// method on a component receiver type.
+	type check struct {
+		typeName      string
+		interfaceName string
+	}
+	var checks []check
+	seen := make(map[check]bool)
+
+	for _, iface := range optionalInterfaces {
+		for _, typeName := range sortedKeys(componentTypes) {
+			pattern := regexp.MustCompile(
+				`func\s*\(\s*\w+\s+\*?` + regexp.QuoteMeta(typeName) + `\s*\)\s*` + iface.methodPattern,
+			)
+			for _, fn := range file.Funcs {
+				if pattern.MatchString(fn.Code) {
+					c := check{typeName, iface.interfaceName}
+					if !seen[c] {
+						seen[c] = true
+						checks = append(checks, c)
+					}
+					break
+				}
+			}
+		}
+	}
+
+	if len(checks) == 0 {
+		return
+	}
+
+	g.writeln("// Compile-time interface satisfaction checks.")
+	g.writeln("var (")
+	g.indent++
+	for _, c := range checks {
+		g.writef("_ %s = (*%s)(nil)\n", c.interfaceName, c.typeName)
+	}
+	g.indent--
+	g.writeln(")")
+	g.writeln("")
+}
+
+// sortedKeys returns the keys of a map in sorted order.
+func sortedKeys(m map[string]bool) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // trackComponentExprField extracts and tracks receiver field names from
