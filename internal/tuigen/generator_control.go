@@ -5,10 +5,10 @@ import (
 )
 
 // generateLetBinding generates code for a let binding.
-func (g *Generator) generateLetBinding(let *LetBinding, parentVar string) {
+func (g *Generator) generateLetBinding(let *LetBinding, parentVar string, inConditional bool) {
 	if let.Call != nil {
 		// RHS is a component call
-		varName := g.generateComponentCallWithRefs(let.Call, "")
+		varName := g.generateComponentCallWithRefs(let.Call, "", inConditional)
 		if g.returnsElement(let.Call) {
 			g.writef("%s := %s\n", let.Name, varName)
 		} else {
@@ -104,15 +104,17 @@ func (g *Generator) generateForLoopWithRefs(loop *ForLoop, parentVar string, inL
 		g.writef("_ = %s\n", idxVar)
 	}
 
-	// Generate loop body - now inside a loop context
+	// Generate loop body - now inside a loop context.
+	// The for-loop body is a block scope, so all component calls and let bindings
+	// inside it must be treated as conditional (hoisted + nil-guarded).
 	for _, node := range loop.Body {
 		switch n := node.(type) {
 		case *Element:
-			g.generateElementWithRefs(n, parentVar, true, inConditional)
+			g.generateElementWithRefs(n, parentVar, true, true)
 		case *LetBinding:
-			g.generateLetBinding(n, parentVar)
+			g.generateLetBinding(n, parentVar, true)
 		case *ForLoop:
-			g.generateForLoopWithRefs(n, parentVar, true, inConditional) // nested loop inside loop context
+			g.generateForLoopWithRefs(n, parentVar, true, true) // nested loop inside loop context
 		case *IfStmt:
 			g.generateIfStmtWithRefs(n, parentVar, true) // now in loop context
 		case *GoCode:
@@ -127,7 +129,7 @@ func (g *Generator) generateForLoopWithRefs(loop *ForLoop, parentVar string, inL
 				g.writef("%s\n", n.Code)
 			}
 		case *ComponentCall:
-			g.generateComponentCallWithRefs(n, parentVar)
+			g.generateComponentCallWithRefs(n, parentVar, true)
 		case *ComponentExpr:
 			g.generateComponentExpr(n, parentVar)
 		case *ChildrenSlot:
@@ -203,7 +205,7 @@ func (g *Generator) generateIfStmtWithRefs(stmt *IfStmt, parentVar string, inLoo
 func (g *Generator) generateIfStmtToRoot(stmt *IfStmt, rootVar string, inLoop bool) {
 	g.writef("if %s {\n", stmt.Condition)
 	g.indent++
-	g.generateNodesToRoot(stmt.Then, rootVar, inLoop)
+	g.generateNodesToRoot(stmt.Then, rootVar, inLoop, true)
 	g.indent--
 
 	if len(stmt.Else) > 0 {
@@ -217,7 +219,7 @@ func (g *Generator) generateIfStmtToRoot(stmt *IfStmt, rootVar string, inLoop bo
 
 		g.writeln("{")
 		g.indent++
-		g.generateNodesToRoot(stmt.Else, rootVar, inLoop)
+		g.generateNodesToRoot(stmt.Else, rootVar, inLoop, true)
 		g.indent--
 		g.writeln("}")
 	} else {
@@ -240,14 +242,14 @@ func (g *Generator) generateForLoopToRoot(loop *ForLoop, rootVar string, inLoop 
 
 // generateNodesToRoot emits nodes and assigns the first rendered element in the
 // sequence to rootVar, preserving existing first-root behavior.
-func (g *Generator) generateNodesToRoot(nodes []Node, rootVar string, inLoop bool) {
+func (g *Generator) generateNodesToRoot(nodes []Node, rootVar string, inLoop bool, inConditional bool) {
 	for _, node := range nodes {
 		switch n := node.(type) {
 		case *Element:
-			varName := g.generateElementWithRefs(n, "", inLoop, true)
+			varName := g.generateElementWithRefs(n, "", inLoop, inConditional)
 			g.assignIfNil(rootVar, varName)
 		case *ComponentCall:
-			varName := g.generateComponentCallWithRefs(n, "")
+			varName := g.generateComponentCallWithRefs(n, "", inConditional)
 			if g.returnsElement(n) {
 				g.assignIfNil(rootVar, varName)
 			} else {
@@ -263,7 +265,7 @@ func (g *Generator) generateNodesToRoot(nodes []Node, rootVar string, inLoop boo
 		case *ForLoop:
 			g.generateForLoopToRoot(n, rootVar, inLoop)
 		case *LetBinding:
-			g.generateLetBinding(n, "")
+			g.generateLetBinding(n, "", inConditional)
 		case *GoCode:
 			g.generateGoCode(n)
 		case *GoExpr:
