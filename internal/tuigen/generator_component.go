@@ -979,7 +979,7 @@ func (g *Generator) spliceConditionalComponentHoists(bodyStartPos int, bodyStart
 // spliceForLoopViewResets inserts slice reset statements at resetPos for any
 // for-loop component variables added after prevVarCount. This prevents unbounded
 // growth of views slices in reactive for-loop closures that fire on every state change.
-func (g *Generator) spliceForLoopViewResets(resetPos int, prevVarCount int) {
+func (g *Generator) spliceForLoopViewResets(resetPos int, resetLine int, prevVarCount int) {
 	var resetLines []string
 	for _, cv := range g.componentVars[prevVarCount:] {
 		if cv.inForLoop {
@@ -996,10 +996,20 @@ func (g *Generator) spliceForLoopViewResets(resetPos int, prevVarCount int) {
 	g.buf.Truncate(resetPos)
 
 	// Write reset statements at the saved position
+	resetLineCount := len(resetLines)
 	for _, line := range resetLines {
 		g.writeln(line)
 	}
 
 	// Write tail bytes back
 	g.buf.Write(tailBytes)
+
+	// Adjust source map entries shifted by the spliced lines.
+	if g.sourceMap != nil {
+		for i := range g.sourceMap.Mappings {
+			if g.sourceMap.Mappings[i].GoLine >= resetLine {
+				g.sourceMap.Mappings[i].GoLine += resetLineCount
+			}
+		}
+	}
 }

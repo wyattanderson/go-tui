@@ -305,10 +305,11 @@ func (g *Generator) generateReactiveIfStmt(stmt *IfStmt, parentVar string, deps 
 	g.indent++
 	g.writef("%s.RemoveAllChildren()\n", condVar)
 
-	// Record buffer position and component var count so we can splice in
+	// Record buffer position, line, and component var count so we can splice in
 	// views slice resets after discovering which for-loop component vars
 	// the if body creates.
 	resetPos := g.buf.Len()
+	resetLine := g.currentLine
 	prevVarCount := len(g.componentVars)
 
 	// Generate the if/else structure inside the closure with wrapper as parent.
@@ -316,7 +317,7 @@ func (g *Generator) generateReactiveIfStmt(stmt *IfStmt, parentVar string, deps 
 	g.generateIfStmtWithRefs(stmt, condVar, true, false)
 
 	// Splice resets for any for-loop component view slices created by the body.
-	g.spliceForLoopViewResets(resetPos, prevVarCount)
+	g.spliceForLoopViewResets(resetPos, resetLine, prevVarCount)
 
 	g.indent--
 	g.writeln("}")
@@ -406,10 +407,11 @@ func (g *Generator) generateReactiveForLoop(loop *ForLoop, parentVar string, dep
 	g.indent++
 	g.writef("%s.RemoveAllChildren()\n", loopVar)
 
-	// Record buffer position and component var count so we can splice in
+	// Record buffer position, line, and component var count so we can splice in
 	// views slice resets after discovering which for-loop component vars
 	// the loop body creates.
 	resetPos := g.buf.Len()
+	resetLine := g.currentLine
 	prevVarCount := len(g.componentVars)
 
 	// Generate the for loop inside the closure with wrapper as parent.
@@ -419,7 +421,7 @@ func (g *Generator) generateReactiveForLoop(loop *ForLoop, parentVar string, dep
 	// Splice resets for any for-loop component view slices created by the loop body.
 	// Without this, the slices would grow unboundedly across reactive update invocations
 	// since they live at function scope and the closure appends on every call.
-	g.spliceForLoopViewResets(resetPos, prevVarCount)
+	g.spliceForLoopViewResets(resetPos, resetLine, prevVarCount)
 
 	g.indent--
 	g.writeln("}")
