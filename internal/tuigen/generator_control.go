@@ -64,6 +64,9 @@ func (g *Generator) generateForLoop(loop *ForLoop, parentVar string) {
 // generateForLoopWithRefs generates code for a for loop with ref context tracking.
 // When the loop body references state variables (and we're not already in a loop/reactive context),
 // generates a reactive wrapper that rebuilds loop children when state changes.
+// The inForLoop parameter is accepted for call-chain uniformity with other *WithRefs
+// functions but intentionally ignored: this function always sets bodyInForLoop=true
+// for its own loop body.
 func (g *Generator) generateForLoopWithRefs(loop *ForLoop, parentVar string, inLoop bool, inConditional bool, _ bool) {
 	// Check if this loop body references state and we're not in a loop context
 	if !inLoop && parentVar != "" {
