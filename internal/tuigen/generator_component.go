@@ -1,6 +1,7 @@
 package tuigen
 
 import (
+	"fmt"
 	"regexp"
 	"sort"
 	"strings"
@@ -56,7 +57,7 @@ func (g *Generator) generateMethodComponent(comp *Component) {
 				rootVar = varName
 			}
 		case *LetBinding:
-			g.generateLetBinding(n, "")
+			g.generateLetBinding(n, "", false)
 		case *ForLoop:
 			if rootVar == "" {
 				rootVar = g.nextVar()
@@ -74,7 +75,7 @@ func (g *Generator) generateMethodComponent(comp *Component) {
 		case *GoExpr:
 			g.writef("%s\n", n.Code)
 		case *ComponentCall:
-			varName := g.generateComponentCallWithRefs(n, "")
+			varName := g.generateComponentCallWithRefs(n, "", false)
 			if rootVar == "" {
 				rootVar = varName
 			}
@@ -155,6 +156,11 @@ func (g *Generator) generateFunctionComponent(comp *Component) {
 	var rootVar string
 	var rootIsComponent bool // Whether root is a component call (needs .Root accessor)
 
+	// Save buffer position before body generation so we can splice in
+	// hoisted declarations for conditional component variables afterward.
+	bodyStartPos := g.buf.Len()
+	bodyStartLine := g.currentLine
+
 	// Generate body nodes
 	for _, node := range comp.Body {
 		switch n := node.(type) {
@@ -166,7 +172,7 @@ func (g *Generator) generateFunctionComponent(comp *Component) {
 		case *LetBinding:
 			// Let bindings create elements that are typically used as children
 			// They are NOT the root element unless explicitly used
-			g.generateLetBinding(n, "")
+			g.generateLetBinding(n, "", false)
 		case *ForLoop:
 			if rootVar == "" {
 				rootVar = g.nextVar()
@@ -185,7 +191,7 @@ func (g *Generator) generateFunctionComponent(comp *Component) {
 			// A bare expression in component body - treat as statement
 			g.writef("%s\n", n.Code)
 		case *ComponentCall:
-			varName := g.generateComponentCallWithRefs(n, "")
+			varName := g.generateComponentCallWithRefs(n, "", false)
 			if rootVar == "" {
 				rootVar = varName
 				rootIsComponent = true
@@ -199,12 +205,25 @@ func (g *Generator) generateFunctionComponent(comp *Component) {
 		}
 	}
 
+	// Hoist declarations for component variables declared inside conditional blocks.
+	// These variables use = (not :=) inside the if block and need a var declaration
+	// at function scope so they're accessible in the watcher/bind/unbind code below.
+	g.spliceConditionalComponentHoists(bodyStartPos, bodyStartLine)
+
 	// Emit watcher collection statements (collected during element generation)
 	if len(g.componentVars) > 0 {
 		g.writeln("")
 		// Aggregate watchers from child component calls
-		for _, compVar := range g.componentVars {
-			g.writef("watchers = append(watchers, %s.GetWatchers()...)\n", compVar)
+		for _, cv := range g.componentVars {
+			if cv.inConditional {
+				g.writef("if %s != nil {\n", cv.name)
+				g.indent++
+				g.writef("watchers = append(watchers, %s.GetWatchers()...)\n", cv.name)
+				g.indent--
+				g.writeln("}")
+			} else {
+				g.writef("watchers = append(watchers, %s.GetWatchers()...)\n", cv.name)
+			}
 		}
 	}
 
@@ -831,12 +850,20 @@ func (g *Generator) generateBindAppClosure() {
 	}
 
 	// Bind child function component views (they implement AppBinder)
-	for _, compVar := range g.componentVars {
-		g.writef("if binder, ok := any(%s).(tui.AppBinder); ok {\n", compVar)
+	for _, cv := range g.componentVars {
+		if cv.inConditional {
+			g.writef("if %s != nil {\n", cv.name)
+			g.indent++
+		}
+		g.writef("if binder, ok := any(%s).(tui.AppBinder); ok {\n", cv.name)
 		g.indent++
 		g.writeln("binder.BindApp(app)")
 		g.indent--
 		g.writeln("}")
+		if cv.inConditional {
+			g.indent--
+			g.writeln("}")
+		}
 	}
 
 	g.indent--
@@ -852,14 +879,63 @@ func (g *Generator) generateBindAppClosure() {
 	}
 
 	// Unbind child function component views (they may implement AppUnbinder)
-	for _, compVar := range g.componentVars {
-		g.writef("if unbinder, ok := any(%s).(tui.AppUnbinder); ok {\n", compVar)
+	for _, cv := range g.componentVars {
+		if cv.inConditional {
+			g.writef("if %s != nil {\n", cv.name)
+			g.indent++
+		}
+		g.writef("if unbinder, ok := any(%s).(tui.AppUnbinder); ok {\n", cv.name)
 		g.indent++
 		g.writeln("unbinder.UnbindApp()")
 		g.indent--
 		g.writeln("}")
+		if cv.inConditional {
+			g.indent--
+			g.writeln("}")
+		}
 	}
 
 	g.indent--
 	g.writeln("}")
+}
+
+// spliceConditionalComponentHoists inserts "var __tui_N *XxxView" declarations
+// at bodyStartPos for any component variables that were declared inside conditional
+// blocks. This hoists them to function scope so the watcher/bind/unbind code can
+// reference them with nil guards.
+func (g *Generator) spliceConditionalComponentHoists(bodyStartPos int, bodyStartLine int) {
+	// Collect hoisted declarations
+	var hoistLines []string
+	for _, cv := range g.componentVars {
+		if cv.inConditional {
+			hoistLines = append(hoistLines, fmt.Sprintf("var %s %s", cv.name, viewTypeName(cv.componentName)))
+		}
+	}
+	if len(hoistLines) == 0 {
+		return
+	}
+
+	// Save body bytes written after bodyStartPos
+	bodyBytes := make([]byte, g.buf.Len()-bodyStartPos)
+	copy(bodyBytes, g.buf.Bytes()[bodyStartPos:])
+	g.buf.Truncate(bodyStartPos)
+
+	// Write hoisted declarations at the saved position (uses current indent)
+	hoistLineCount := len(hoistLines)
+	for _, line := range hoistLines {
+		g.writeln(line)
+	}
+
+	// Write body bytes back
+	g.buf.Write(bodyBytes)
+
+	// Adjust source map entries: all mappings recorded during body generation
+	// have line numbers that are now shifted down by hoistLineCount.
+	if g.sourceMap != nil {
+		for i := range g.sourceMap.Mappings {
+			if g.sourceMap.Mappings[i].GoLine >= bodyStartLine {
+				g.sourceMap.Mappings[i].GoLine += hoistLineCount
+			}
+		}
+	}
 }

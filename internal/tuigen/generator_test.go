@@ -980,3 +980,217 @@ func (h *helper) KeyMap() tui.KeyMap {
 		})
 	}
 }
+
+func TestGenerator_ConditionalComponentCallScoping(t *testing.T) {
+	type tc struct {
+		input           string
+		wantContains    []string
+		wantNotContains []string
+	}
+
+	tests := map[string]tc{
+		"component call inside if block hoists var and nil-guards wiring": {
+			input: `package x
+
+templ ItemRow(hasBadge bool) {
+	<div>
+		<span>name</span>
+		if hasBadge {
+			@Badge()
+		}
+	</div>
+}`,
+			wantContains: []string{
+				// Hoisted declaration at function scope
+				"var __tui_2 *BadgeView",
+				// Assignment (not short declaration) inside the if block
+				"__tui_2 = Badge()",
+				// Nil-guarded watcher aggregation
+				"if __tui_2 != nil {\n\t\twatchers = append(watchers, __tui_2.GetWatchers()...)\n\t}",
+				// Nil-guarded bindApp (3 tabs: function body > closure body > nil guard)
+				"if __tui_2 != nil {\n\t\t\tif binder, ok := any(__tui_2).(tui.AppBinder)",
+				// Nil-guarded unbindApp
+				"if __tui_2 != nil {\n\t\t\tif unbinder, ok := any(__tui_2).(tui.AppUnbinder)",
+			},
+			wantNotContains: []string{
+				// Must NOT have short declaration inside the if block
+				"__tui_2 := Badge()",
+			},
+		},
+		"unconditional component call is unchanged": {
+			input: `package x
+
+templ Parent() {
+	<div>
+		@Header()
+	</div>
+}`,
+			wantContains: []string{
+				"__tui_1 := Header()",
+				"watchers = append(watchers, __tui_1.GetWatchers()...)",
+			},
+			wantNotContains: []string{
+				"var __tui_1",
+				"if __tui_1 != nil",
+			},
+		},
+		"mixed conditional and unconditional component calls": {
+			input: `package x
+
+templ Mixed(show bool) {
+	<div>
+		@Header()
+		if show {
+			@Badge()
+		}
+	</div>
+}`,
+			wantContains: []string{
+				// Header is unconditional
+				"__tui_1 := Header()",
+				// Badge is conditional — hoisted
+				"var __tui_2 *BadgeView",
+				"__tui_2 = Badge()",
+				// Header watcher is direct
+				"watchers = append(watchers, __tui_1.GetWatchers()...)",
+				// Badge watcher is nil-guarded
+				"if __tui_2 != nil {\n\t\twatchers = append(watchers, __tui_2.GetWatchers()...)\n\t}",
+			},
+		},
+		"component calls in both if and else branches": {
+			input: `package x
+
+templ Row(a bool) {
+	<div>
+		if a {
+			@Badge()
+		} else {
+			@Icon()
+		}
+	</div>
+}`,
+			wantContains: []string{
+				"var __tui_1 *BadgeView",
+				"var __tui_2 *IconView",
+				"__tui_1 = Badge()",
+				"__tui_2 = Icon()",
+				"if __tui_1 != nil",
+				"if __tui_2 != nil",
+			},
+			wantNotContains: []string{
+				"__tui_1 := Badge()",
+				"__tui_2 := Icon()",
+			},
+		},
+		"nested conditional component call": {
+			input: `package x
+
+templ Nested(a bool, b bool) {
+	<div>
+		if a {
+			if b {
+				@Badge()
+			}
+		}
+	</div>
+}`,
+			wantContains: []string{
+				"var __tui_1 *BadgeView",
+				"__tui_1 = Badge()",
+				"if __tui_1 != nil",
+			},
+			wantNotContains: []string{
+				"__tui_1 := Badge()",
+			},
+		},
+		"component call in children-building if block": {
+			input: `package x
+
+templ Outer(show bool) {
+	<div>
+		@Wrapper() {
+			if show {
+				@Badge()
+			}
+		}
+	</div>
+}`,
+			wantContains: []string{
+				// __tui_3 because __tui_2 is consumed by the children slice variable
+				"var __tui_3 *BadgeView",
+				"__tui_3 = Badge()",
+				"if __tui_3 != nil",
+			},
+			wantNotContains: []string{
+				"__tui_3 := Badge()",
+			},
+		},
+		"component call inside for loop hoists var": {
+			input: `package x
+
+templ List(items []string) {
+	<div>
+		for _, item := range items {
+			@Badge(item)
+		}
+	</div>
+}`,
+			wantContains: []string{
+				"var __tui_1 *BadgeView",
+				"__tui_1 = Badge(item)",
+				"if __tui_1 != nil",
+			},
+			wantNotContains: []string{
+				"__tui_1 := Badge(item)",
+			},
+		},
+		"method templ with conditional function templ uses short declaration": {
+			input: `package x
+
+type sidebar struct{}
+
+templ Foo() {
+	<div></div>
+}
+
+templ (s *sidebar) Render() {
+	<div>
+		if true {
+			@Foo()
+		}
+	</div>
+}`,
+			wantContains: []string{
+				// Method templs don't hoist - they use := inside the block
+				"__tui_1 := Foo()",
+			},
+			wantNotContains: []string{
+				// No hoisted var declaration
+				"var __tui_1",
+				// No bare assignment
+				"__tui_1 = Foo()",
+			},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			output, err := parseAndGenerateSkipImports("test.gsx", tt.input)
+			if err != nil {
+				t.Fatalf("generation failed: %v", err)
+			}
+
+			code := string(output)
+			for _, want := range tt.wantContains {
+				if !strings.Contains(code, want) {
+					t.Errorf("output missing expected string: %q\nGot:\n%s", want, code)
+				}
+			}
+			for _, notWant := range tt.wantNotContains {
+				if strings.Contains(code, notWant) {
+					t.Errorf("output contains unexpected string: %q\nGot:\n%s", notWant, code)
+				}
+			}
+		})
+	}
+}

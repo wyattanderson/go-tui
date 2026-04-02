@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
+	"strings"
 
 	"golang.org/x/tools/imports"
 )
@@ -19,7 +20,7 @@ type Generator struct {
 	refs []RefInfo
 
 	// Component calls with watchers that need aggregation
-	componentVars []string
+	componentVars []componentVarEntry
 
 	// State tracking for current component (for reactive bindings)
 	stateVars     []StateVar
@@ -71,6 +72,24 @@ type Generator struct {
 	// Used to avoid mounting function templs via app.Mount() from method templs —
 	// they should be called directly since they're stateless view functions.
 	functionTempls map[string]bool
+}
+
+// componentVarEntry tracks a function component call variable for watcher/bind aggregation.
+type componentVarEntry struct {
+	name          string // generated variable name (e.g., "__tui_2")
+	componentName string // component function name (e.g., "Badge" or "pkg.Badge")
+	inConditional bool   // true when declared inside an if/else block scope
+}
+
+// viewTypeName returns the view struct pointer type for a component name.
+// e.g., "Badge" -> "*BadgeView", "pkg.Badge" -> "*pkg.BadgeView"
+func viewTypeName(componentName string) string {
+	if idx := strings.LastIndex(componentName, "."); idx != -1 {
+		pkg := componentName[:idx]
+		name := componentName[idx+1:]
+		return "*" + pkg + "." + name + "View"
+	}
+	return "*" + componentName + "View"
 }
 
 // NewGenerator creates a new code generator.
