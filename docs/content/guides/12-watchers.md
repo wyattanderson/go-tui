@@ -514,6 +514,36 @@ Remember: `state.Get()` is safe from any goroutine, but `state.Set()` and `state
 | `events.Subscribe()` | Yes | Yes |
 | `app.QueueUpdate()` | Yes | Yes |
 
+### Getting the app into a component
+
+Background goroutines spawned from component methods need an `*tui.App` reference to call `QueueUpdate`. Declare a field of type `*tui.App` on the component struct and the generator will assign it in the auto-generated `BindApp` alongside the `State` and `Events` delegations:
+
+```go
+type Dashboard struct {
+    app *tui.App                  // auto-assigned on mount
+    cpu *tui.State[CPUSnapshot]
+    mem *tui.State[MemSnapshot]
+}
+
+func (d *Dashboard) sampleCPU() {
+    go func() {
+        snap := collectCPU()
+        d.app.QueueUpdate(func() { d.cpu.Set(snap) })
+    }()
+}
+```
+
+Do not write your own `BindApp` unless you need custom binding behavior. If you do override it, the generator still emits a `bindAppFields(app *tui.App)` helper on the same receiver; call it from your `BindApp` so every `State` and `Events` field stays bound:
+
+```go
+func (d *Dashboard) BindApp(app *tui.App) {
+    d.bindAppFields(app)    // generator-supplied delegation
+    // your custom logic here
+}
+```
+
+Forgetting to call `bindAppFields` leaves `State` fields unbound: `Set` will either panic or silently drop the update.
+
 ## Complete Example
 
 This app combines a stopwatch timer with a channel-fed message stream. The timer ticks every second and conditionally increments the stopwatch. The channel watcher appends messages from a background producer. An `OnChange` watcher on the messages state keeps the feed scrolled to the bottom automatically.

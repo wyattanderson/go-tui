@@ -500,7 +500,10 @@ func (d *directoryTree) UpdateProps(fresh tui.Component) {
 
 var _ tui.PropsUpdater = (*directoryTree)(nil)
 
-func (d *directoryTree) BindApp(app *tui.App) {
+// bindAppFields is generated. It wires the component's *tui.App,
+// State, Events, and TextArea fields to app. When you override BindApp,
+// call this helper instead of hand-maintaining the delegation list.
+func (d *directoryTree) bindAppFields(app *tui.App) {
 	if d.cursor != nil {
 		d.cursor.BindApp(app)
 	}
@@ -510,6 +513,10 @@ func (d *directoryTree) BindApp(app *tui.App) {
 	if d.scrollY != nil {
 		d.scrollY.BindApp(app)
 	}
+}
+
+func (d *directoryTree) BindApp(app *tui.App) {
+	d.bindAppFields(app)
 }
 
 var _ tui.AppBinder = (*directoryTree)(nil)

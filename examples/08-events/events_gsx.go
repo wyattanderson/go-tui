@@ -120,13 +120,20 @@ func (e *explorer) Render(app *tui.App) *tui.Element {
 	return __tui_0
 }
 
-func (e *explorer) BindApp(app *tui.App) {
+// bindAppFields is generated. It wires the component's *tui.App,
+// State, Events, and TextArea fields to app. When you override BindApp,
+// call this helper instead of hand-maintaining the delegation list.
+func (e *explorer) bindAppFields(app *tui.App) {
 	if e.lastKey != nil {
 		e.lastKey.BindApp(app)
 	}
 	if e.keyCount != nil {
 		e.keyCount.BindApp(app)
 	}
+}
+
+func (e *explorer) BindApp(app *tui.App) {
+	e.bindAppFields(app)
 }
 
 var _ tui.AppBinder = (*explorer)(nil)

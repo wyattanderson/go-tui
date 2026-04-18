@@ -227,7 +227,10 @@ func (w *watcherApp) Render(app *tui.App) *tui.Element {
 	return __tui_0
 }
 
-func (w *watcherApp) BindApp(app *tui.App) {
+// bindAppFields is generated. It wires the component's *tui.App,
+// State, Events, and TextArea fields to app. When you override BindApp,
+// call this helper instead of hand-maintaining the delegation list.
+func (w *watcherApp) bindAppFields(app *tui.App) {
 	if w.stopwatchSec != nil {
 		w.stopwatchSec.BindApp(app)
 	}
@@ -243,6 +246,10 @@ func (w *watcherApp) BindApp(app *tui.App) {
 	if w.scrollY != nil {
 		w.scrollY.BindApp(app)
 	}
+}
+
+func (w *watcherApp) BindApp(app *tui.App) {
+	w.bindAppFields(app)
 }
 
 var _ tui.AppBinder = (*watcherApp)(nil)

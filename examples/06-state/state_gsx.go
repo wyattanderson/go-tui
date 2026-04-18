@@ -286,7 +286,10 @@ func (d *demoApp) UpdateProps(fresh tui.Component) {
 
 var _ tui.PropsUpdater = (*demoApp)(nil)
 
-func (d *demoApp) BindApp(app *tui.App) {
+// bindAppFields is generated. It wires the component's *tui.App,
+// State, Events, and TextArea fields to app. When you override BindApp,
+// call this helper instead of hand-maintaining the delegation list.
+func (d *demoApp) bindAppFields(app *tui.App) {
 	if d.count != nil {
 		d.count.BindApp(app)
 	}
@@ -296,6 +299,10 @@ func (d *demoApp) BindApp(app *tui.App) {
 	if d.showReset != nil {
 		d.showReset.BindApp(app)
 	}
+}
+
+func (d *demoApp) BindApp(app *tui.App) {
+	d.bindAppFields(app)
 }
 
 var _ tui.AppBinder = (*demoApp)(nil)

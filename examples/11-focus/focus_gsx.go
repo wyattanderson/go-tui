@@ -116,7 +116,10 @@ func (p *panelForm) UpdateProps(fresh tui.Component) {
 
 var _ tui.PropsUpdater = (*panelForm)(nil)
 
-func (p *panelForm) BindApp(app *tui.App) {
+// bindAppFields is generated. It wires the component's *tui.App,
+// State, Events, and TextArea fields to app. When you override BindApp,
+// call this helper instead of hand-maintaining the delegation list.
+func (p *panelForm) bindAppFields(app *tui.App) {
 	if p.panel1 != nil {
 		p.panel1.BindApp(app)
 	}
@@ -129,6 +132,10 @@ func (p *panelForm) BindApp(app *tui.App) {
 	if p.clickCount != nil {
 		p.clickCount.BindApp(app)
 	}
+}
+
+func (p *panelForm) BindApp(app *tui.App) {
+	p.bindAppFields(app)
 }
 
 var _ tui.AppBinder = (*panelForm)(nil)

@@ -259,7 +259,10 @@ func (f *feedApp) UpdateProps(fresh tui.Component) {
 
 var _ tui.PropsUpdater = (*feedApp)(nil)
 
-func (f *feedApp) BindApp(app *tui.App) {
+// bindAppFields is generated. It wires the component's *tui.App,
+// State, Events, and TextArea fields to app. When you override BindApp,
+// call this helper instead of hand-maintaining the delegation list.
+func (f *feedApp) bindAppFields(app *tui.App) {
 	if f.messages != nil {
 		f.messages.BindApp(app)
 	}
@@ -272,6 +275,10 @@ func (f *feedApp) BindApp(app *tui.App) {
 	if f.stickToBottom != nil {
 		f.stickToBottom.BindApp(app)
 	}
+}
+
+func (f *feedApp) BindApp(app *tui.App) {
+	f.bindAppFields(app)
 }
 
 var _ tui.AppBinder = (*feedApp)(nil)

@@ -305,6 +305,7 @@ func WithHelper(text string) *WithHelperView {
 	var view WithHelperView
 	var watchers []tui.Watcher
 
+	var __tui_2 *ConditionalContentView
 	shouldShowHeader := true
 	otherHelperFunction("test")
 	__tui_0 := tui.New()
@@ -313,7 +314,7 @@ func WithHelper(text string) *WithHelperView {
 	)
 	__tui_0.AddChild(__tui_1)
 	if shouldShowHeader {
-		__tui_2 := ConditionalContent(true, false)
+		__tui_2 = ConditionalContent(true, false)
 		__tui_0.AddChild(__tui_2.Root)
 	} else {
 		__tui_3 := tui.New(
@@ -322,17 +323,23 @@ func WithHelper(text string) *WithHelperView {
 		__tui_0.AddChild(__tui_3)
 	}
 
-	watchers = append(watchers, __tui_2.GetWatchers()...)
+	if __tui_2 != nil {
+		watchers = append(watchers, __tui_2.GetWatchers()...)
+	}
 
 	__bindApp := func(app *tui.App) {
-		if binder, ok := any(__tui_2).(tui.AppBinder); ok {
-			binder.BindApp(app)
+		if __tui_2 != nil {
+			if binder, ok := any(__tui_2).(tui.AppBinder); ok {
+				binder.BindApp(app)
+			}
 		}
 	}
 
 	__unbindApp := func() {
-		if unbinder, ok := any(__tui_2).(tui.AppUnbinder); ok {
-			unbinder.UnbindApp()
+		if __tui_2 != nil {
+			if unbinder, ok := any(__tui_2).(tui.AppUnbinder); ok {
+				unbinder.UnbindApp()
+			}
 		}
 	}
 

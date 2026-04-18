@@ -93,7 +93,10 @@ func (c *myModal) UpdateProps(fresh tui.Component) {
 
 var _ tui.PropsUpdater = (*myModal)(nil)
 
-func (c *myModal) BindApp(app *tui.App) {
+// bindAppFields is generated. It wires the component's *tui.App,
+// State, Events, and TextArea fields to app. When you override BindApp,
+// call this helper instead of hand-maintaining the delegation list.
+func (c *myModal) bindAppFields(app *tui.App) {
 	c.app = app
 	if c.showModal != nil {
 		c.showModal.BindApp(app)
@@ -101,6 +104,10 @@ func (c *myModal) BindApp(app *tui.App) {
 	if c.gameOver != nil {
 		c.gameOver.BindApp(app)
 	}
+}
+
+func (c *myModal) BindApp(app *tui.App) {
+	c.bindAppFields(app)
 }
 
 var _ tui.AppBinder = (*myModal)(nil)

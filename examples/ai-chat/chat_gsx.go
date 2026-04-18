@@ -270,7 +270,10 @@ func (c *chat) UpdateProps(fresh tui.Component) {
 
 var _ tui.PropsUpdater = (*chat)(nil)
 
-func (c *chat) BindApp(app *tui.App) {
+// bindAppFields is generated. It wires the component's *tui.App,
+// State, Events, and TextArea fields to app. When you override BindApp,
+// call this helper instead of hand-maintaining the delegation list.
+func (c *chat) bindAppFields(app *tui.App) {
 	c.app = app
 	if c.showSettings != nil {
 		c.showSettings.BindApp(app)
@@ -295,12 +298,23 @@ func (c *chat) BindApp(app *tui.App) {
 	}
 }
 
+func (c *chat) BindApp(app *tui.App) {
+	c.bindAppFields(app)
+}
+
 var _ tui.AppBinder = (*chat)(nil)
 
-func (c *chat) UnbindApp() {
+// unbindAppFields is generated. It detaches topic-based Events
+// subscriptions and any component-expression AppUnbinder fields.
+// Call this from your UnbindApp if you override it.
+func (c *chat) unbindAppFields() {
 	if unbinder, ok := any(c.settingsView).(tui.AppUnbinder); ok {
 		unbinder.UnbindApp()
 	}
+}
+
+func (c *chat) UnbindApp() {
+	c.unbindAppFields()
 }
 
 var _ tui.AppUnbinder = (*chat)(nil)

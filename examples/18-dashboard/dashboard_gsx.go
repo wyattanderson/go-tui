@@ -408,7 +408,10 @@ func (d *dashboardApp) Render(app *tui.App) *tui.Element {
 	return __tui_0
 }
 
-func (d *dashboardApp) BindApp(app *tui.App) {
+// bindAppFields is generated. It wires the component's *tui.App,
+// State, Events, and TextArea fields to app. When you override BindApp,
+// call this helper instead of hand-maintaining the delegation list.
+func (d *dashboardApp) bindAppFields(app *tui.App) {
 	if d.cpu != nil {
 		d.cpu.BindApp(app)
 	}
@@ -436,6 +439,10 @@ func (d *dashboardApp) BindApp(app *tui.App) {
 	if d.scrollY != nil {
 		d.scrollY.BindApp(app)
 	}
+}
+
+func (d *dashboardApp) BindApp(app *tui.App) {
+	d.bindAppFields(app)
 }
 
 var _ tui.AppBinder = (*dashboardApp)(nil)
