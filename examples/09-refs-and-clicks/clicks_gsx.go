@@ -520,7 +520,10 @@ func (c *colorMixer) Render(app *tui.App) *tui.Element {
 	return __tui_0
 }
 
-func (c *colorMixer) BindApp(app *tui.App) {
+// bindAppFields is generated. It wires the component's *tui.App,
+// State, Events, and TextArea fields to app. When you override BindApp,
+// call this helper instead of hand-maintaining the delegation list.
+func (c *colorMixer) bindAppFields(app *tui.App) {
 	if c.red != nil {
 		c.red.BindApp(app)
 	}
@@ -536,6 +539,10 @@ func (c *colorMixer) BindApp(app *tui.App) {
 	if c.showResetModal != nil {
 		c.showResetModal.BindApp(app)
 	}
+}
+
+func (c *colorMixer) BindApp(app *tui.App) {
+	c.bindAppFields(app)
 }
 
 var _ tui.AppBinder = (*colorMixer)(nil)

@@ -477,8 +477,20 @@ func findStructDecl(decls []*GoDecl, typeName string) *GoDecl {
 // hasUserBindAppMethod returns true when the source file already declares a
 // BindApp method on the receiver type.
 func hasUserBindAppMethod(decls []*GoDecl, funcs []*GoFunc, receiverType string) bool {
+	return hasUserMethod(decls, funcs, receiverType, "BindApp")
+}
+
+// hasUserUnbindAppMethod returns true when the source file already declares an
+// UnbindApp method on the receiver type. Kept distinct from BindApp detection
+// so that users who override BindApp alone still receive an auto-generated
+// UnbindApp (otherwise their Events fields would leak subscriptions).
+func hasUserUnbindAppMethod(decls []*GoDecl, funcs []*GoFunc, receiverType string) bool {
+	return hasUserMethod(decls, funcs, receiverType, "UnbindApp")
+}
+
+func hasUserMethod(decls []*GoDecl, funcs []*GoFunc, receiverType, methodName string) bool {
 	typeName := strings.TrimPrefix(receiverType, "*")
-	pattern := regexp.MustCompile(`func\s*\(\s*\w+\s+\*?` + regexp.QuoteMeta(typeName) + `\s*\)\s*BindApp\s*\(`)
+	pattern := regexp.MustCompile(`func\s*\(\s*\w+\s+\*?` + regexp.QuoteMeta(typeName) + `\s*\)\s*` + regexp.QuoteMeta(methodName) + `\s*\(`)
 
 	for _, decl := range decls {
 		if decl.Kind == "func" && pattern.MatchString(decl.Code) {
@@ -565,11 +577,13 @@ func isAppBindableType(fieldType string) bool {
 
 // generateBindApp generates a BindApp method for a method component.
 // This allows the mount system to bind the app to State/Events fields.
+//
+// The generator always emits an unexported bindAppFields helper when the
+// component has any *tui.App, State, Events, or component-expression fields.
+// The public BindApp is either auto-generated (and just calls the helper) or,
+// when the user overrides BindApp, the helper remains callable from user code
+// so that delegations don't have to be hand-maintained.
 func (g *Generator) generateBindApp(comp *Component, decls []*GoDecl) {
-	if hasUserBindAppMethod(decls, g.fileFuncs, comp.ReceiverType) {
-		return
-	}
-
 	// Find the struct declaration for this component's receiver type
 	structDecl := findStructDecl(decls, comp.ReceiverType)
 	if structDecl == nil {
@@ -623,10 +637,36 @@ func (g *Generator) generateBindApp(comp *Component, decls []*GoDecl) {
 	// Get the receiver type name without pointer
 	typeName := strings.TrimPrefix(comp.ReceiverType, "*")
 
-	// Generate BindApp method with nil checks
+	// Always emit the bindAppFields helper so user-defined BindApp overrides
+	// can call it instead of hand-maintaining the delegation list.
+	g.emitBindAppFieldsHelper(comp, appFields, bindableFields, componentBindFields)
+
+	if hasUserBindAppMethod(decls, g.fileFuncs, comp.ReceiverType) {
+		return
+	}
+
+	// Auto-generate BindApp: a thin wrapper that calls the helper.
 	g.writef("func (%s) BindApp(app *tui.App) {\n", comp.Receiver)
 	g.indent++
-	// Set *tui.App fields directly
+	g.writef("%s.bindAppFields(app)\n", comp.ReceiverName)
+	g.indent--
+	g.writeln("}")
+	g.writeln("")
+
+	// Add a compile-time check that the type implements AppBinder
+	g.writef("var _ tui.AppBinder = (*%s)(nil)\n", typeName)
+	g.writeln("")
+}
+
+// emitBindAppFieldsHelper writes the unexported bindAppFields method containing
+// the actual delegation logic: assigning *tui.App fields, calling BindApp on
+// State/Events/TextArea fields, and AppBinder type-asserting component-expr fields.
+func (g *Generator) emitBindAppFieldsHelper(comp *Component, appFields, bindableFields []StructField, componentBindFields []string) {
+	g.writef("// bindAppFields is generated. It wires the component's *tui.App,\n")
+	g.writef("// State, Events, and TextArea fields to app. When you override BindApp,\n")
+	g.writef("// call this helper instead of hand-maintaining the delegation list.\n")
+	g.writef("func (%s) bindAppFields(app *tui.App) {\n", comp.Receiver)
+	g.indent++
 	for _, f := range appFields {
 		g.writef("%s.%s = app\n", comp.ReceiverName, f.Name)
 	}
@@ -637,7 +677,6 @@ func (g *Generator) generateBindApp(comp *Component, decls []*GoDecl) {
 		g.indent--
 		g.writeln("}")
 	}
-	// Bind component expression fields via type assertion
 	for _, name := range componentBindFields {
 		g.writef("if binder, ok := any(%s.%s).(tui.AppBinder); ok {\n", comp.ReceiverName, name)
 		g.indent++
@@ -648,19 +687,17 @@ func (g *Generator) generateBindApp(comp *Component, decls []*GoDecl) {
 	g.indent--
 	g.writeln("}")
 	g.writeln("")
-
-	// Add a compile-time check that the type implements AppBinder
-	g.writef("var _ tui.AppBinder = (*%s)(nil)\n", typeName)
-	g.writeln("")
 }
 
 // generateUnbindApp generates an UnbindApp method for a method component.
 // This allows mount sweep to detach topic-based Events subscriptions.
+//
+// Like generateBindApp, the generator always emits an unbindAppFields helper
+// so a user-defined UnbindApp override can delegate to it by calling the
+// helper instead of hand-maintaining the unbind list. Detection keys on the
+// user's UnbindApp independently from BindApp so that overriding one method
+// does not suppress auto-generation of the other.
 func (g *Generator) generateUnbindApp(comp *Component, decls []*GoDecl) {
-	if hasUserBindAppMethod(decls, g.fileFuncs, comp.ReceiverType) {
-		return
-	}
-
 	structDecl := findStructDecl(decls, comp.ReceiverType)
 	if structDecl == nil {
 		return
@@ -698,7 +735,31 @@ func (g *Generator) generateUnbindApp(comp *Component, decls []*GoDecl) {
 	}
 
 	typeName := strings.TrimPrefix(comp.ReceiverType, "*")
+
+	// Always emit the unbindAppFields helper.
+	g.emitUnbindAppFieldsHelper(comp, unbindFields, componentUnbindFields)
+
+	if hasUserUnbindAppMethod(decls, g.fileFuncs, comp.ReceiverType) {
+		return
+	}
+
+	// Auto-generate UnbindApp as a thin wrapper around the helper.
 	g.writef("func (%s) UnbindApp() {\n", comp.Receiver)
+	g.indent++
+	g.writef("%s.unbindAppFields()\n", comp.ReceiverName)
+	g.indent--
+	g.writeln("}")
+	g.writeln("")
+	g.writef("var _ tui.AppUnbinder = (*%s)(nil)\n", typeName)
+	g.writeln("")
+}
+
+// emitUnbindAppFieldsHelper writes the unexported unbindAppFields method.
+func (g *Generator) emitUnbindAppFieldsHelper(comp *Component, unbindFields []StructField, componentUnbindFields []string) {
+	g.writef("// unbindAppFields is generated. It detaches topic-based Events\n")
+	g.writef("// subscriptions and any component-expression AppUnbinder fields.\n")
+	g.writef("// Call this from your UnbindApp if you override it.\n")
+	g.writef("func (%s) unbindAppFields() {\n", comp.Receiver)
 	g.indent++
 	for _, f := range unbindFields {
 		g.writef("if %s.%s != nil {\n", comp.ReceiverName, f.Name)
@@ -716,8 +777,6 @@ func (g *Generator) generateUnbindApp(comp *Component, decls []*GoDecl) {
 	}
 	g.indent--
 	g.writeln("}")
-	g.writeln("")
-	g.writef("var _ tui.AppUnbinder = (*%s)(nil)\n", typeName)
 	g.writeln("")
 }
 

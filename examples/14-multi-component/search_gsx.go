@@ -121,13 +121,20 @@ func (s *searchBar) Render(app *tui.App) *tui.Element {
 	return __tui_0
 }
 
-func (s *searchBar) BindApp(app *tui.App) {
+// bindAppFields is generated. It wires the component's *tui.App,
+// State, Events, and TextArea fields to app. When you override BindApp,
+// call this helper instead of hand-maintaining the delegation list.
+func (s *searchBar) bindAppFields(app *tui.App) {
 	if s.active != nil {
 		s.active.BindApp(app)
 	}
 	if s.query != nil {
 		s.query.BindApp(app)
 	}
+}
+
+func (s *searchBar) BindApp(app *tui.App) {
+	s.bindAppFields(app)
 }
 
 var _ tui.AppBinder = (*searchBar)(nil)
@@ -185,13 +192,20 @@ func (c *content) Render(app *tui.App) *tui.Element {
 	return __tui_0
 }
 
-func (c *content) BindApp(app *tui.App) {
+// bindAppFields is generated. It wires the component's *tui.App,
+// State, Events, and TextArea fields to app. When you override BindApp,
+// call this helper instead of hand-maintaining the delegation list.
+func (c *content) bindAppFields(app *tui.App) {
 	if c.category != nil {
 		c.category.BindApp(app)
 	}
 	if c.query != nil {
 		c.query.BindApp(app)
 	}
+}
+
+func (c *content) BindApp(app *tui.App) {
+	c.bindAppFields(app)
 }
 
 var _ tui.AppBinder = (*content)(nil)

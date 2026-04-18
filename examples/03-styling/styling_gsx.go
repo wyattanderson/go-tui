@@ -63,10 +63,17 @@ func (s *statusApp) Render(app *tui.App) *tui.Element {
 	return __tui_0
 }
 
-func (s *statusApp) BindApp(app *tui.App) {
+// bindAppFields is generated. It wires the component's *tui.App,
+// State, Events, and TextArea fields to app. When you override BindApp,
+// call this helper instead of hand-maintaining the delegation list.
+func (s *statusApp) bindAppFields(app *tui.App) {
 	if s.value != nil {
 		s.value.BindApp(app)
 	}
+}
+
+func (s *statusApp) BindApp(app *tui.App) {
+	s.bindAppFields(app)
 }
 
 var _ tui.AppBinder = (*statusApp)(nil)

@@ -359,7 +359,10 @@ func (a *animationApp) UpdateProps(fresh tui.Component) {
 
 var _ tui.PropsUpdater = (*animationApp)(nil)
 
-func (a *animationApp) BindApp(app *tui.App) {
+// bindAppFields is generated. It wires the component's *tui.App,
+// State, Events, and TextArea fields to app. When you override BindApp,
+// call this helper instead of hand-maintaining the delegation list.
+func (a *animationApp) bindAppFields(app *tui.App) {
 	if a.spinnerFrame != nil {
 		a.spinnerFrame.BindApp(app)
 	}
@@ -369,6 +372,10 @@ func (a *animationApp) BindApp(app *tui.App) {
 	if a.pulsePhase != nil {
 		a.pulsePhase.BindApp(app)
 	}
+}
+
+func (a *animationApp) BindApp(app *tui.App) {
+	a.bindAppFields(app)
 }
 
 var _ tui.AppBinder = (*animationApp)(nil)

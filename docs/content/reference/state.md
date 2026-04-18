@@ -183,7 +183,7 @@ Binds the event bus to an app for dirty-marking. The framework calls this during
 func (e *Events[T]) UnbindApp()
 ```
 
-Detaches the event bus from app topic routing. Called automatically when components unmount.
+Detaches the event bus from app topic routing. Called automatically when components unmount or when the root is replaced.
 
 ### Emit
 
@@ -254,6 +254,30 @@ go func() {
     })
 }()
 ```
+
+### Getting `*tui.App` into a component
+
+For samplers, pollers, or any goroutine spawned from a component method, the component needs an `*tui.App` reference to call `QueueUpdate`. Declare a field of that type on the struct; the generator's `BindApp` assigns it automatically along with delegating to every `State` and `Events` field:
+
+```go
+type MyComponent struct {
+    app   *tui.App            // auto-assigned on mount
+    count *tui.State[int]
+}
+
+templ (c *MyComponent) Render() { <span>{count}</span> }
+```
+
+The generator also emits an unexported `bindAppFields(app *tui.App)` method on the receiver. If you override `BindApp` (for custom setup), call `bindAppFields` from inside your override so the `State` and `Events` delegations don't have to be maintained by hand:
+
+```go
+func (c *MyComponent) BindApp(app *tui.App) {
+    c.bindAppFields(app)
+    // custom logic here
+}
+```
+
+A user-defined `BindApp` that skips `bindAppFields` will leave `State` fields unbound, causing `Set` to panic or silently drop updates.
 
 ## Practical Patterns
 

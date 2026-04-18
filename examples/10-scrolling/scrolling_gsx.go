@@ -166,13 +166,20 @@ func (f *fileList) UpdateProps(fresh tui.Component) {
 
 var _ tui.PropsUpdater = (*fileList)(nil)
 
-func (f *fileList) BindApp(app *tui.App) {
+// bindAppFields is generated. It wires the component's *tui.App,
+// State, Events, and TextArea fields to app. When you override BindApp,
+// call this helper instead of hand-maintaining the delegation list.
+func (f *fileList) bindAppFields(app *tui.App) {
 	if f.selected != nil {
 		f.selected.BindApp(app)
 	}
 	if f.scrollY != nil {
 		f.scrollY.BindApp(app)
 	}
+}
+
+func (f *fileList) BindApp(app *tui.App) {
+	f.bindAppFields(app)
 }
 
 var _ tui.AppBinder = (*fileList)(nil)

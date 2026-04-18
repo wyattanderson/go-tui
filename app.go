@@ -79,6 +79,7 @@ type App struct {
 	mounts        *mountState
 	dispatchTable *dispatchTable // Key broadcast dispatch table, rebuilt on dirty frames
 	rootComponent Component      // Root struct component (set via SetRoot with Component)
+	rootUnbinder  AppUnbinder    // Tracks the current root's AppUnbinder for swap-time teardown. Covers SetRootView where rootComponent is nil.
 
 	// Component watchers (from WatcherProvider components)
 	componentWatchers        []Watcher
@@ -326,21 +327,34 @@ func NewAppWithReader(reader EventReader, opts ...AppOption) (*App, error) {
 	return app, nil
 }
 
+// unbindPreviousRoot drains the current root's AppUnbinder (if any) before a
+// new root is bound. Called from every root-setter so that Events subscriptions
+// owned by the outgoing root do not leak into the new session.
+func (a *App) unbindPreviousRoot() {
+	if a.rootUnbinder == nil {
+		return
+	}
+	a.rootUnbinder.UnbindApp()
+	a.rootUnbinder = nil
+}
+
 // SetRoot sets the root element for rendering.
 func (a *App) SetRoot(root *Element) {
+	a.unbindPreviousRoot()
 	a.rootComponent = nil
 	a.applyRoot(root)
 }
 
 // SetRootView sets the root from a Viewable and starts its watchers.
 func (a *App) SetRootView(view Viewable) {
+	a.unbindPreviousRoot()
 	a.rootComponent = nil
 	if binder, ok := view.(AppBinder); ok {
 		binder.BindApp(a)
 	}
 	a.applyRoot(view.GetRoot())
-	if binder, ok := view.(AppBinder); ok {
-		binder.BindApp(a)
+	if u, ok := view.(AppUnbinder); ok {
+		a.rootUnbinder = u
 	}
 	for _, w := range view.GetWatchers() {
 		w.Start(a.watcherQueue, a.rootWatcherCh)
@@ -348,16 +362,21 @@ func (a *App) SetRootView(view Viewable) {
 }
 
 // SetRootComponent sets the root from a struct component.
+//
+// If a previous root component implements AppUnbinder, its UnbindApp is called
+// before the new component is bound. This drains its Events subscriptions from
+// a.topics so the outgoing root doesn't leak listeners across root swaps.
 func (a *App) SetRootComponent(component Component) {
+	a.unbindPreviousRoot()
 	if binder, ok := component.(AppBinder); ok {
 		binder.BindApp(a)
 	}
 	a.rootComponent = component
+	if u, ok := component.(AppUnbinder); ok {
+		a.rootUnbinder = u
+	}
 	el := component.Render(a)
 	a.applyRoot(el)
-	if binder, ok := component.(AppBinder); ok {
-		binder.BindApp(a)
-	}
 }
 
 func (a *App) applyRoot(root *Element) {
@@ -393,12 +412,21 @@ func (a *App) resetRootSession() {
 	a.rootWatcherCh = mergeStopChannels(a.stopCh, a.rootStopCh)
 	a.focus = newFocusManager()
 	a.dispatchTable = nil
+
+	// Drain cached mounts via UnbindApp before tossing the cache so their
+	// Events subscriptions deregister themselves from a.topics. This replaces
+	// the former blanket wipe of a.topics, which also nuked valid subscriptions
+	// owned by the root component and required Events.BindApp to fight back.
+	if a.mounts != nil {
+		for _, comp := range a.mounts.cache {
+			if unbinder, ok := comp.(AppUnbinder); ok {
+				unbinder.UnbindApp()
+			}
+		}
+	}
 	a.mounts = newMountState()
 	a.componentWatchers = nil
 	a.componentWatchersStarted = false
-	a.topicMu.Lock()
-	a.topics = make(map[string]*topicSubscription)
-	a.topicMu.Unlock()
 }
 
 func mergeStopChannels(ch1, ch2 <-chan struct{}) <-chan struct{} {
