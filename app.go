@@ -79,6 +79,7 @@ type App struct {
 	mounts        *mountState
 	dispatchTable *dispatchTable // Key broadcast dispatch table, rebuilt on dirty frames
 	rootComponent Component      // Root struct component (set via SetRoot with Component)
+	rootUnbinder  AppUnbinder    // Tracks the current root's AppUnbinder for swap-time teardown. Covers SetRootView where rootComponent is nil.
 
 	// Component watchers (from WatcherProvider components)
 	componentWatchers        []Watcher
@@ -327,19 +328,31 @@ func NewAppWithReader(reader EventReader, opts ...AppOption) (*App, error) {
 }
 
 // SetRoot sets the root element for rendering.
-func (a *App) SetRoot(root *Element) {
-	if prev, ok := a.rootComponent.(AppUnbinder); ok {
-		prev.UnbindApp()
+// unbindPreviousRoot drains the current root's AppUnbinder (if any) before a
+// new root is bound. Called from every root-setter so that Events subscriptions
+// owned by the outgoing root do not leak into the new session. skip lets a
+// caller protect against unbinding when the incoming root is the same instance.
+func (a *App) unbindPreviousRoot(skip AppUnbinder) {
+	if a.rootUnbinder == nil || a.rootUnbinder == skip {
+		return
 	}
+	a.rootUnbinder.UnbindApp()
+	a.rootUnbinder = nil
+}
+
+func (a *App) SetRoot(root *Element) {
+	a.unbindPreviousRoot(nil)
 	a.rootComponent = nil
 	a.applyRoot(root)
 }
 
 // SetRootView sets the root from a Viewable and starts its watchers.
 func (a *App) SetRootView(view Viewable) {
-	if prev, ok := a.rootComponent.(AppUnbinder); ok {
-		prev.UnbindApp()
+	var next AppUnbinder
+	if u, ok := view.(AppUnbinder); ok {
+		next = u
 	}
+	a.unbindPreviousRoot(next)
 	a.rootComponent = nil
 	if binder, ok := view.(AppBinder); ok {
 		binder.BindApp(a)
@@ -348,6 +361,7 @@ func (a *App) SetRootView(view Viewable) {
 	if binder, ok := view.(AppBinder); ok {
 		binder.BindApp(a)
 	}
+	a.rootUnbinder = next
 	for _, w := range view.GetWatchers() {
 		w.Start(a.watcherQueue, a.rootWatcherCh)
 	}
@@ -359,13 +373,16 @@ func (a *App) SetRootView(view Viewable) {
 // before the new component is bound. This drains its Events subscriptions from
 // a.topics so the outgoing root doesn't leak listeners across root swaps.
 func (a *App) SetRootComponent(component Component) {
-	if prev, ok := a.rootComponent.(AppUnbinder); ok && a.rootComponent != component {
-		prev.UnbindApp()
+	var next AppUnbinder
+	if u, ok := component.(AppUnbinder); ok {
+		next = u
 	}
+	a.unbindPreviousRoot(next)
 	if binder, ok := component.(AppBinder); ok {
 		binder.BindApp(a)
 	}
 	a.rootComponent = component
+	a.rootUnbinder = next
 	el := component.Render(a)
 	a.applyRoot(el)
 	if binder, ok := component.(AppBinder); ok {

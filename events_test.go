@@ -299,6 +299,66 @@ func (r *rootWithUnbind) UnbindApp() {
 	}
 }
 
+// TestSetRootView_UnbindsPreviousView verifies that swapping views via
+// SetRootView drains the outgoing view's subscriptions. Previously,
+// a.rootComponent was nil'd on each SetRootView call, so the guard that
+// looked at a.rootComponent never fired and two consecutive SetRootView
+// calls would leak the first view's listeners into a.topics.
+func TestSetRootView_UnbindsPreviousView(t *testing.T) {
+	app := &App{
+		mounts: newMountState(),
+		batch:  newBatchContext(),
+	}
+
+	unboundA := 0
+	viewA := &viewWithUnbind{onUnbind: func() { unboundA++ }}
+	app.SetRootView(viewA)
+	if unboundA != 0 {
+		t.Fatalf("unexpected UnbindApp on first SetRootView: %d", unboundA)
+	}
+
+	viewB := &viewWithUnbind{}
+	app.SetRootView(viewB)
+	if unboundA != 1 {
+		t.Fatalf("expected first view to be unbound on swap, got %d", unboundA)
+	}
+}
+
+// TestSetRootComponent_AfterSetRootView_UnbindsView verifies that crossing
+// between setters also drains the previous root. Without the unified
+// rootUnbinder field, the view set via SetRootView would be unreachable
+// from SetRootComponent's guard (rootComponent was nil'd).
+func TestSetRootComponent_AfterSetRootView_UnbindsView(t *testing.T) {
+	app := &App{
+		mounts: newMountState(),
+		batch:  newBatchContext(),
+	}
+
+	unboundView := 0
+	view := &viewWithUnbind{onUnbind: func() { unboundView++ }}
+	app.SetRootView(view)
+
+	component := &rootWithUnbind{}
+	app.SetRootComponent(component)
+
+	if unboundView != 1 {
+		t.Fatalf("expected view to be unbound when switching to SetRootComponent, got %d", unboundView)
+	}
+}
+
+type viewWithUnbind struct {
+	onUnbind func()
+}
+
+func (v *viewWithUnbind) GetRoot() *Element       { return New() }
+func (v *viewWithUnbind) GetWatchers() []Watcher  { return nil }
+func (v *viewWithUnbind) BindApp(app *App)        {}
+func (v *viewWithUnbind) UnbindApp() {
+	if v.onUnbind != nil {
+		v.onUnbind()
+	}
+}
+
 func TestNewEvents_EmptyTopicPanics(t *testing.T) {
 	defer func() {
 		if recover() == nil {
