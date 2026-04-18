@@ -693,9 +693,10 @@ func (g *Generator) emitBindAppFieldsHelper(comp *Component, appFields, bindable
 // This allows mount sweep to detach topic-based Events subscriptions.
 //
 // Like generateBindApp, the generator always emits an unbindAppFields helper
-// so a user-defined BindApp override (which also suppresses auto-generation of
-// UnbindApp via hasUserBindAppMethod) can still cleanly delegate the unbind
-// logic by calling the helper from their own UnbindApp.
+// so a user-defined UnbindApp override can delegate to it by calling the
+// helper instead of hand-maintaining the unbind list. Detection keys on the
+// user's UnbindApp independently from BindApp so that overriding one method
+// does not suppress auto-generation of the other.
 func (g *Generator) generateUnbindApp(comp *Component, decls []*GoDecl) {
 	structDecl := findStructDecl(decls, comp.ReceiverType)
 	if structDecl == nil {

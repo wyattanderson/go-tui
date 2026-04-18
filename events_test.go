@@ -238,7 +238,7 @@ func TestResetRootSession_CallsUnbindOnCachedMounts(t *testing.T) {
 	}
 
 	unbound := 0
-	tracker := &unbindTracker{onUnbind: func() { unbound++ }}
+	tracker := &componentTracker{onUnbind: func() { unbound++ }}
 	key := mountKey{parent: nil, index: 0}
 	app.mounts.cache[key] = tracker
 
@@ -262,40 +262,30 @@ func TestSetRootComponent_UnbindsOldRoot(t *testing.T) {
 	}
 
 	unbound := 0
-	first := &rootWithUnbind{onUnbind: func() { unbound++ }}
+	first := &componentTracker{onUnbind: func() { unbound++ }}
 	app.SetRootComponent(first)
 	if unbound != 0 {
 		t.Fatalf("unexpected UnbindApp on first SetRootComponent: %d", unbound)
 	}
 
-	second := &rootWithUnbind{}
+	second := &componentTracker{}
 	app.SetRootComponent(second)
 	if unbound != 1 {
 		t.Fatalf("expected old root to be unbound on swap, got %d", unbound)
 	}
 }
 
-type unbindTracker struct {
+// componentTracker is a Component + AppBinder + AppUnbinder used by the
+// teardown and root-swap tests. onUnbind (if set) records UnbindApp calls.
+type componentTracker struct {
 	onUnbind func()
 }
 
-func (u *unbindTracker) Render(app *App) *Element { return New() }
-func (u *unbindTracker) BindApp(app *App)         {}
-func (u *unbindTracker) UnbindApp() {
-	if u.onUnbind != nil {
-		u.onUnbind()
-	}
-}
-
-type rootWithUnbind struct {
-	onUnbind func()
-}
-
-func (r *rootWithUnbind) Render(app *App) *Element { return New() }
-func (r *rootWithUnbind) BindApp(app *App)         {}
-func (r *rootWithUnbind) UnbindApp() {
-	if r.onUnbind != nil {
-		r.onUnbind()
+func (c *componentTracker) Render(app *App) *Element { return New() }
+func (c *componentTracker) BindApp(app *App)         {}
+func (c *componentTracker) UnbindApp() {
+	if c.onUnbind != nil {
+		c.onUnbind()
 	}
 }
 
@@ -338,7 +328,7 @@ func TestSetRootComponent_AfterSetRootView_UnbindsView(t *testing.T) {
 	view := &viewWithUnbind{onUnbind: func() { unboundView++ }}
 	app.SetRootView(view)
 
-	component := &rootWithUnbind{}
+	component := &componentTracker{}
 	app.SetRootComponent(component)
 
 	if unboundView != 1 {

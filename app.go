@@ -327,11 +327,14 @@ func NewAppWithReader(reader EventReader, opts ...AppOption) (*App, error) {
 	return app, nil
 }
 
-// SetRoot sets the root element for rendering.
 // unbindPreviousRoot drains the current root's AppUnbinder (if any) before a
 // new root is bound. Called from every root-setter so that Events subscriptions
 // owned by the outgoing root do not leak into the new session. skip lets a
 // caller protect against unbinding when the incoming root is the same instance.
+//
+// Interface equality relies on rootUnbinder holding a pointer receiver, which
+// every AppUnbinder in this codebase does. Storing a non-pointer value type
+// with an incomparable field would panic on comparison.
 func (a *App) unbindPreviousRoot(skip AppUnbinder) {
 	if a.rootUnbinder == nil || a.rootUnbinder == skip {
 		return
@@ -340,6 +343,7 @@ func (a *App) unbindPreviousRoot(skip AppUnbinder) {
 	a.rootUnbinder = nil
 }
 
+// SetRoot sets the root element for rendering.
 func (a *App) SetRoot(root *Element) {
 	a.unbindPreviousRoot(nil)
 	a.rootComponent = nil
