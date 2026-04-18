@@ -328,12 +328,18 @@ func NewAppWithReader(reader EventReader, opts ...AppOption) (*App, error) {
 
 // SetRoot sets the root element for rendering.
 func (a *App) SetRoot(root *Element) {
+	if prev, ok := a.rootComponent.(AppUnbinder); ok {
+		prev.UnbindApp()
+	}
 	a.rootComponent = nil
 	a.applyRoot(root)
 }
 
 // SetRootView sets the root from a Viewable and starts its watchers.
 func (a *App) SetRootView(view Viewable) {
+	if prev, ok := a.rootComponent.(AppUnbinder); ok {
+		prev.UnbindApp()
+	}
 	a.rootComponent = nil
 	if binder, ok := view.(AppBinder); ok {
 		binder.BindApp(a)
@@ -348,7 +354,14 @@ func (a *App) SetRootView(view Viewable) {
 }
 
 // SetRootComponent sets the root from a struct component.
+//
+// If a previous root component implements AppUnbinder, its UnbindApp is called
+// before the new component is bound. This drains its Events subscriptions from
+// a.topics so the outgoing root doesn't leak listeners across root swaps.
 func (a *App) SetRootComponent(component Component) {
+	if prev, ok := a.rootComponent.(AppUnbinder); ok && a.rootComponent != component {
+		prev.UnbindApp()
+	}
 	if binder, ok := component.(AppBinder); ok {
 		binder.BindApp(a)
 	}
@@ -393,12 +406,21 @@ func (a *App) resetRootSession() {
 	a.rootWatcherCh = mergeStopChannels(a.stopCh, a.rootStopCh)
 	a.focus = newFocusManager()
 	a.dispatchTable = nil
+
+	// Drain cached mounts via UnbindApp before tossing the cache so their
+	// Events subscriptions deregister themselves from a.topics. This replaces
+	// the former blanket wipe of a.topics, which also nuked valid subscriptions
+	// owned by the root component and required Events.BindApp to fight back.
+	if a.mounts != nil {
+		for _, comp := range a.mounts.cache {
+			if unbinder, ok := comp.(AppUnbinder); ok {
+				unbinder.UnbindApp()
+			}
+		}
+	}
 	a.mounts = newMountState()
 	a.componentWatchers = nil
 	a.componentWatchersStarted = false
-	a.topicMu.Lock()
-	a.topics = make(map[string]*topicSubscription)
-	a.topicMu.Unlock()
 }
 
 func mergeStopChannels(ch1, ch2 <-chan struct{}) <-chan struct{} {
